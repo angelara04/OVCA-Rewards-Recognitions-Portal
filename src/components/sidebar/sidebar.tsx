@@ -1,6 +1,6 @@
 import React from "react";
-import Section from "../section";
 import Tabs from "./tabs";
+import Section from "../section";
 
 interface SidebarProps {
   role: "hr" | "committee" | "nominator";
@@ -37,8 +37,8 @@ export default function Sidebar({ role }: SidebarProps) {
   }
 
   return (
-    <Section>
-      <div className="w-[265px] h-full">
+    <Section height="h-full" width="max-w-[20%] w-full min-w-[150px]">
+      <div className=" w-full h-full">
         <Tabs info={tabs} role={role} />
       </div>
     </Section>
