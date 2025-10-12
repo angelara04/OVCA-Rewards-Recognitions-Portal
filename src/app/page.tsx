@@ -5,9 +5,12 @@ import Card from "@/components/card";
 import Sidebar from "@/components/sidebar/sidebar";
 import Button from "@/components/button";
 import Table from "@/components/table/review-nomination-table";
+import Greeting from "@/components/greetings/greeting";
 
 export default function Home() {
   // Sample table data
+  const role = "nominator"; // Change this to "hr", "committee", or "nominator" to test different sidebars
+
   const nominationsData = [
     {
       nomineeName: "Nominee Name 1",
@@ -35,9 +38,10 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Header />
+      <Greeting Fname="John Doe" role={role} />
 
       <div className="flex flex-row gap-3 mt-3">
-        <Sidebar role="hr" />
+        <Sidebar role={role} />
         {/* sidebar have a fixed width */}
 
         <div className="w-[80%] h-full ">

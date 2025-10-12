@@ -16,22 +16,30 @@ export default function Sidebar({ role }: SidebarProps) {
 
   switch (role) {
     case "hr":
-      tabs = ["Dashboard", "Nominations", "Employees", "Reports", "Settings"];
+      tabs = [
+        "Review Dashboard",
+        "Pending Reviews",
+        "Scored Nominations",
+        "Committee Scoring",
+      ];
       break;
     case "committee":
-      tabs = ["Overview", "Pending Reviews", "Scoring", "History"];
+      tabs = [
+        "Dashboard",
+        "Committee Review",
+        "HR Reports",
+        "Final Evaluation",
+      ];
       break;
     case "nominator":
-      tabs = ["Overview", "My Nominations", "Results"];
+      tabs = ["Dashboard", "Nomination Forms", "My Nominations"];
       break;
-    default:
-      tabs = ["Overview"];
   }
 
   return (
     <Section>
       <div className="w-[265px] h-full">
-        <Tabs info={tabs} />
+        <Tabs info={tabs} role={role} />
       </div>
     </Section>
   );
