@@ -16,12 +16,12 @@ interface TableProps {
 
 export default function Table({ title, data }: TableProps) {
   return (
-    <div className="w-full bg-white rounded-xl  shadow-[0_0px_10px_2px_rgba(0,0,0,0.10)] overflow-hidden p-5">
+    <div className="w-[280px] bg-white rounded-xl md:w-[550px] lg:w-full shadow-[0_0px_10px_2px_rgba(0,0,0,0.10)]  p-5">
       {/* Header */}
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">{title}</h2>
+      <h2 className="font-bold text-2xl text-[var(--black)] mb-4">{title}</h2>
 
       {/* Table Wrapper for proper rounding */}
-      <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="overflow-y-scroll rounded-lg border border-gray-200">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-[var(--maroon)] text-white">
             <tr>
