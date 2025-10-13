@@ -1,0 +1,30 @@
+import Header from "@/components/header";
+import Sidebar from "@/components/sidebar/sidebar";
+import Greeting from "@/components/greetings/greeting";
+
+export default function NominatorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const role = "nominator";
+  const Fname = "John Doe";
+
+  return (
+    <div className="flex flex-col w-full h-full min-h-screen">
+      {/* Header */}
+      <div className="h-auto">
+        <Header />
+      </div>
+
+      {/* Greeting */}
+      <Greeting Fname={Fname} role={role} />
+
+      {/* Sidebar + Main content (same flex + p-5 + gap-2 as before) */}
+      <div className="flex flex-row justify-center items-center w-full h-full gap-2 p-5">
+        <Sidebar role={role} />
+        <div className="w-full h-full">{children}</div>
+      </div>
+    </div>
+  );
+}
