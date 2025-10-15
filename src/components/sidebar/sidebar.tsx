@@ -15,7 +15,7 @@ export default function Sidebar({ role }: SidebarProps) {
   let tabs: string[] = [];
 
   switch (role) {
-    case "hr":
+    case "committee":
       tabs = [
         "Review Dashboard",
         "Pending Reviews",
@@ -23,7 +23,7 @@ export default function Sidebar({ role }: SidebarProps) {
         "Committee Scoring",
       ];
       break;
-    case "committee":
+    case "hr":
       tabs = [
         "Dashboard",
         "Committee Review",
