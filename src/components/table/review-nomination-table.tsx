@@ -51,11 +51,11 @@ export default function Table({ title, data }: TableProps) {
                     className={clsx(
                       "px-3 py-1 rounded-full text-xs font-medium",
                       row.status === "Pending" &&
-                        "bg-yellow-100 text-yellow-800",
+                        "bg-[var(--light-yellow)] text-yellow-800",
                       row.status === "Complete" &&
-                        "bg-green-100 text-green-700",
+                        "bg-[var(--light-green)] text-[var(--forest-green)]",
                       row.status === "Not Started" &&
-                        "bg-gray-100 text-gray-600"
+                        "bg-[var(--light-red)] text-[var(--maroon)]"
                     )}
                   >
                     {row.status}

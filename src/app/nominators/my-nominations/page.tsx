@@ -36,7 +36,7 @@ export default function MyNominationsPage() {
   ];
 
   return (
-    <Section width="w-full" height="h-auto" alignment="items-center p-10">
+    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       {/* Header */}
       <div className="flex flex-row justify-between items-center w-full my-2">
         <span className="font-bold text-3xl">My Nominations</span>
