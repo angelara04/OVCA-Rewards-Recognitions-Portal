@@ -29,7 +29,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <Section width="w-full" height="h-auto" alignment="items-center p-10">
+    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       <div className="flex flex-row justify-between items-center w-full my-2">
         <span className="font-bold text-3xl">Nominator Dashboard</span>
         <Button size="sm" variant="primary">

@@ -15,7 +15,7 @@ export default function Section({
 }: SectionProps) {
   return (
     <div
-      className={`${width} ${height} rounded-2xl bg-white shadow-[0_0px_10px_2px_rgba(0,0,0,0.10)] p-2 flex flex-col flex-wrap gap-2 ${alignment}`}
+      className={`${width} ${height} rounded-2xl shadow-[0_0px_5px_2px_rgba(0,0,0,0.10)] p-2 flex flex-col flex-wrap gap-2 ${alignment}`}
     >
       {children}
     </div>
