@@ -4,14 +4,14 @@ import Button from "@/components/button";
 import Section from "@/components/section";
 import Dropdown from "@/components/dropdown";
 import React from "react";
-import { useGlobalStore } from "@/app/store/category";
+import { Category } from "@/app/store/category";
 
 interface CommitteeScoringProps {
   children?: React.ReactNode; // ✅ define children as a prop
 }
 
 export default function CommitteeScoring({ children }: CommitteeScoringProps) {
-  const { selectedCategory } = useGlobalStore(); //get only the current category
+  const { selectedCategory } = Category(); //get only the current category
 
   return (
     <Section

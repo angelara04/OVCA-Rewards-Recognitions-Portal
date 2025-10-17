@@ -6,7 +6,7 @@ interface GlobalState {
   setSelectedCategory: (category: string) => void;
 }
 
-export const useGlobalStore = create<GlobalState>()(
+export const Category = create<GlobalState>()(
   persist(
     (set) => ({
       selectedCategory: "Select Category",
