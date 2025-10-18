@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Button from "../button";
+import { Category } from "@/app/store/category";
+
 export default function PerformanceEvaluationForm() {
+  const { selectedCategory } = Category();
+
   const partAKeys = ["2022", "2023", "2024 (Jan–Jun)"];
   const partBKeys = [
     "Intervening Activities",
@@ -15,12 +19,25 @@ export default function PerformanceEvaluationForm() {
   ];
 
   const partAMax = 60;
-  const partBMax = [12, 5, 2, 6];
+  const [partBMax, setPartBMax] = useState<number[]>([0, 0, 0, 0]);
   const partCMax = [5, 5, 5];
+
+  // ✅ Automatically update partBMax when category changes
+  useEffect(() => {
+    if (selectedCategory === "Non-Teaching Personnel (Senior Level)") {
+      setPartBMax([10, 8, 4, 3]);
+    } else if (
+      selectedCategory ===
+      "Non-Teaching Personnel (Junior and Industrial Level)"
+    ) {
+      setPartBMax([12, 5, 2, 6]);
+    } else {
+      setPartBMax([0, 0, 0, 0]);
+    }
+  }, [selectedCategory]);
 
   type PartType = "partA" | "partB" | "partC";
 
-  // Store input as string to allow proper editing
   const [inputs, setInputs] = useState<{
     partA: string[];
     partB: string[];
@@ -43,11 +60,14 @@ export default function PerformanceEvaluationForm() {
 
   const handleChange = (part: PartType, index: number, value: string) => {
     let max = 0;
+    let min = 0;
     if (part === "partA") max = partAMax;
-    if (part === "partB") max = partBMax[index];
-    if (part === "partC") max = partCMax[index];
+    if (part === "partB") max = partBMax[index] ?? 0;
+    if (part === "partC") {
+      max = partCMax[index];
+      min = 1; // enforce minimum 1 for Part C
+    }
 
-    // Prevent invalid characters and empty string
     if (value === "") {
       setInputs((prev) => {
         const updated = { ...prev };
@@ -62,29 +82,23 @@ export default function PerformanceEvaluationForm() {
       return;
     }
 
-    // Convert to number safely
     let numericVal = Number(value);
-
-    // Restrict value between 0 and max
-    if (numericVal < 0) numericVal = 0;
+    if (numericVal < min) numericVal = min;
     if (numericVal > max) numericVal = max;
 
-    // Update input as string
     setInputs((prev) => {
       const updated = { ...prev };
       updated[part][index] = numericVal.toString();
       return updated;
     });
 
-    // Check error (if user manually typed over max, show error)
     setErrors((prev) => {
       const updated = { ...prev };
-      updated[part][index] = numericVal > max;
+      updated[part][index] = numericVal > max || numericVal < min;
       return updated;
     });
   };
 
-  // Convert strings to numbers for calculation
   const totalPartA = inputs.partA.reduce(
     (sum, val) => sum + (Number(val) || 0),
     0
@@ -102,7 +116,7 @@ export default function PerformanceEvaluationForm() {
 
   return (
     <div>
-      <div className="max-w-5xl mx-auto bg-[var-(--white)] shadow-md rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
+      <div className="max-w-5xl mx-auto bg-[var(--white)] shadow-md rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-[var(--maroon)] text-white font-normal">
@@ -118,9 +132,14 @@ export default function PerformanceEvaluationForm() {
                 Part A. (Maximum Points - 60)
               </td>
             </tr>
+            <tr className="border-b border-[var(--outline-grey)]">
+              <td className="p-3">IPCR (Indicate the average rating)</td>
+              <td className="p-3"></td>
+              <td className="p-3"></td>
+            </tr>
             {partAKeys.map((year, idx) => (
               <tr key={year} className="border-b border-[var(--outline-grey)]">
-                <td className="p-3">IPCR: {year}</td>
+                <td className="p-3">{year}</td>
                 <td className="p-3">{partAMax}</td>
                 <td className="p-3">
                   <input
@@ -140,37 +159,27 @@ export default function PerformanceEvaluationForm() {
                 </td>
               </tr>
             ))}
-            <tr className="border-b  border-[var(--outline-grey)]">
+            <tr className="border-b border-[var(--outline-grey)]">
               <td className="p-3 font-medium">Average:</td>
-              <td className="p-3 border-1 border-[var(--outline-grey)] bg-[var(--grey)] flex justify-center">
+              <td className="p-3 bg-[var(--grey)] flex justify-center">
                 {avgPartA}
               </td>
               <td className="p-3"></td>
             </tr>
+
             {/* Part B */}
             <tr className="bg-[var(--grey)]">
               <td colSpan={3} className="font-semibold p-3">
                 Part B. (Maximum Points - 25)
               </td>
             </tr>
-            {[
-              ["Intervening Activities", "12"],
-              [
-                "Significant innovations/contributions that improved the efficiency of unit operations",
-                "5",
-              ],
-              ["Awards received within the three-year period", "2"],
-              [
-                "Community service in adherence to UP’s mandate and/or membership as a Public Service University (within the three-year period)",
-                "6",
-              ],
-            ].map(([indicator, max], idx) => (
+            {partBKeys.map((indicator, idx) => (
               <tr
                 key={indicator}
                 className="border-b border-[var(--outline-grey)]"
               >
                 <td className="p-3">{indicator}</td>
-                <td className="p-3">{max}</td>
+                <td className="p-3">{partBMax[idx] ?? 0}</td>
                 <td className="p-3">
                   <input
                     type="number"
@@ -181,51 +190,44 @@ export default function PerformanceEvaluationForm() {
                     value={inputs.partB[idx]}
                     onChange={(e) => handleChange("partB", idx, e.target.value)}
                     min={0}
-                    max={Number(max)}
+                    max={partBMax[idx] ?? 0}
                   />
                   {errors.partB[idx] && (
-                    <div className="text-red-500 text-xs">Max {max}</div>
+                    <div className="text-red-500 text-xs">
+                      Max {partBMax[idx] ?? 0}
+                    </div>
                   )}
                 </td>
               </tr>
             ))}
+
             {/* Part C */}
             <tr className="bg-[var(--grey)]">
               <td colSpan={3} className="font-semibold p-3">
                 Part C. (Maximum Points - 15)
               </td>
             </tr>
-            {[
-              ["Punctuality (refer Table PUNCTUALITY)", "5"],
-              [
-                "Ability to deliver quality outputs on time (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)",
-                "5",
-              ],
-              [
-                "Ability to work effectively with others as a team (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)",
-                "5",
-              ],
-            ].map(([indicator, max], idx) => (
+            {partCKeys.map((indicator, idx) => (
               <tr
                 key={indicator}
                 className="border-b border-[var(--outline-grey)]"
               >
                 <td className="p-3">{indicator}</td>
-                <td className="p-3">{max}</td>
+                <td className="p-3">1–5</td>
                 <td className="p-3">
                   <input
                     type="number"
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partC[idx] ? "border-red-500" : ""
                     }`}
-                    placeholder="0"
+                    placeholder="1"
                     value={inputs.partC[idx]}
                     onChange={(e) => handleChange("partC", idx, e.target.value)}
-                    min={0}
-                    max={Number(max)}
+                    min={1}
+                    max={5}
                   />
                   {errors.partC[idx] && (
-                    <div className="text-red-500 text-xs">Max {max}</div>
+                    <div className="text-red-500 text-xs">Range 1–5 only</div>
                   )}
                 </td>
               </tr>
@@ -233,9 +235,10 @@ export default function PerformanceEvaluationForm() {
           </tbody>
         </table>
       </div>
+
       {/* Total Points */}
       <div className="mt-4 p-3 font-semibold text-right w-full h-[111px] rounded-2xl bg-[var(--maroon)] text-[var(--white)] flex items-center justify-center flex-col gap-2">
-        <span> Total Score: {overallTotal} Points </span>
+        <span>Total Score: {overallTotal} Points</span>
         <span>Minimum score to qualify for the award: 70 points</span>
       </div>
 
