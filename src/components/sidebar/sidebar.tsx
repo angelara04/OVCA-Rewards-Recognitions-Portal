@@ -25,10 +25,11 @@ export default function Sidebar({ role }: SidebarProps) {
       break;
     case "hr":
       tabs = [
-        "Dashboard",
-        "Committee Review",
-        "HR Reports",
-        "Final Evaluation",
+        "HR Dashboard",
+        "Employee Registration",
+        "Committee Management",
+        "Portal Settings",
+        "Nomination Report",
       ];
       break;
     case "nominator":
