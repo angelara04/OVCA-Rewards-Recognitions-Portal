@@ -15,36 +15,48 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return NextResponse.redirect(`${origin}/login`)
 
+      // Check if user has a profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .maybeSingle()
 
+      // If no profile, check registry
       if (!profile) {
-        // user not approved yet
-        return NextResponse.redirect(`${origin}/registry`)
+        const { data: registry } = await supabase
+          .from('registry')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        // If user is registered but still pending → go to pending page
+        if (registry?.status === 'pending') {
+          return NextResponse.redirect(`${origin}/pending`)
+        }
+
+        // If no registry record → new user → go to registry page
+        if (!registry) {
+          return NextResponse.redirect(`${origin}/registry`)
+        }
+
+        // If denied → send to denied info page
+        if (registry?.status === 'denied') {
+          return NextResponse.redirect(`${origin}/denied`)
+        }
       }
 
       // redirect based on role
-      if (profile.role === 'admin') {
-        next = '/admin'
-      } else if (profile.role === 'committee') {
-        next = '/committee'
-      } else if (profile.role === 'nominee') {
-        next = '/' // default homepage for nominees
-      }
+      if (profile?.role === 'admin') next = '/admin'
+      else if (profile?.role === 'committee') next = '/committee'
+      else if (profile?.role === 'nominee') next = '/'
 
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
 
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      if (isLocalEnv) return NextResponse.redirect(`${origin}${next}`)
+      else if (forwardedHost) return NextResponse.redirect(`https://${forwardedHost}${next}`)
+      else return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
