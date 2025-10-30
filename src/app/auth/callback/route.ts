@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       // redirect based on role
       if (profile?.role === 'admin') next = '/admin'
       else if (profile?.role === 'committee') next = '/committee'
-      else if (profile?.role === 'nominee') next = '/'
+      else if (profile?.role === 'nominator') next = '/nominators'
 
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'

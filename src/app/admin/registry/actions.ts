@@ -48,7 +48,7 @@ export async function approveRegistration(id: string) {
     id: reg.user_id,
     email: reg.email,
     name: reg.name,
-    role: 'nominee',
+    role: 'nominator',
   })
 
   if (profileError) {
