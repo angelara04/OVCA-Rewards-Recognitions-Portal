@@ -1,10 +1,13 @@
-'use client';
+"use client";
 
 import Button from "@/components/button";
-import { useState, useMemo } from "react"
-import { ScrollableTable, ActionsMenu } from "@/components/table/scrollable-table"
-import { SearchBar } from "@/components/search-bar"
-import { StatusBadge } from "@/components/table/status-badge"
+import { useState, useMemo } from "react";
+import {
+  ScrollableTable,
+  ActionsMenu,
+} from "@/components/table/scrollable-table";
+import { SearchBar } from "@/components/search-bar";
+import { StatusBadge } from "@/components/table/status-badge";
 import Section from "@/components/section";
 
 // Mock data for Pending Review
@@ -129,25 +132,116 @@ const PENDING_NOMINATIONS_DATA = [
     department: "Finance",
     status: "Not Started" as const,
   },
-]
+  {
+    nomineeId: "E01250134",
+    nomineeName: "Ignacio Medina",
+    category: "Customer Service",
+    nominatorId: "E01250134",
+    nominatorName: "Juana Herrera",
+    dateSubmitted: "10/06/2025",
+    department: "Operations",
+    status: "Not Started" as const,
+  },
+  {
+    nomineeId: "E01250135",
+    nomineeName: "Josefina Navarro",
+    category: "Innovation",
+    nominatorId: "E01250135",
+    nominatorName: "Karina Pena",
+    dateSubmitted: "10/05/2025",
+    department: "Technology",
+    status: "In Progress" as const,
+  },
+  {
+    nomineeId: "E01250136",
+    nomineeName: "Leandro Gutierrez",
+    category: "Leadership",
+    nominatorId: "E01250136",
+    nominatorName: "Mariana Acosta",
+    dateSubmitted: "10/04/2025",
+    department: "Finance",
+    status: "Not Started" as const,
+  },
+  {
+    nomineeId: "E01250134",
+    nomineeName: "Ignacio Medina",
+    category: "Customer Service",
+    nominatorId: "E01250134",
+    nominatorName: "Juana Herrera",
+    dateSubmitted: "10/06/2025",
+    department: "Operations",
+    status: "Not Started" as const,
+  },
+  {
+    nomineeId: "E01250135",
+    nomineeName: "Josefina Navarro",
+    category: "Innovation",
+    nominatorId: "E01250135",
+    nominatorName: "Karina Pena",
+    dateSubmitted: "10/05/2025",
+    department: "Technology",
+    status: "In Progress" as const,
+  },
+  {
+    nomineeId: "E01250136",
+    nomineeName: "Leandro Gutierrez",
+    category: "Leadership",
+    nominatorId: "E01250136",
+    nominatorName: "Mariana Acosta",
+    dateSubmitted: "10/04/2025",
+    department: "Finance",
+    status: "Not Started" as const,
+  },
+  {
+    nomineeId: "E01250134",
+    nomineeName: "Ignacio Medina",
+    category: "Customer Service",
+    nominatorId: "E01250134",
+    nominatorName: "Juana Herrera",
+    dateSubmitted: "10/06/2025",
+    department: "Operations",
+    status: "Not Started" as const,
+  },
+  {
+    nomineeId: "E01250135",
+    nomineeName: "Josefina Navarro",
+    category: "Innovation",
+    nominatorId: "E01250135",
+    nominatorName: "Karina Pena",
+    dateSubmitted: "10/05/2025",
+    department: "Technology",
+    status: "In Progress" as const,
+  },
+  {
+    nomineeId: "E01250136",
+    nomineeName: "Leandro Gutierrez",
+    category: "Leadership",
+    nominatorId: "E01250136",
+    nominatorName: "Mariana Acosta",
+    dateSubmitted: "10/04/2025",
+    department: "Finance",
+    status: "Not Started" as const,
+  },
+];
 
 export default function PendingNominationsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredNominations = useMemo(() => {
-    if (!searchQuery.trim()) return PENDING_NOMINATIONS_DATA
+    if (!searchQuery.trim()) return PENDING_NOMINATIONS_DATA;
 
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLowerCase();
     return PENDING_NOMINATIONS_DATA.filter(
       (nomination) =>
-        nomination.nomineeName.toLowerCase().includes(query) || nomination.department.toLowerCase().includes(query),
-    )
-  }, [searchQuery])
+        nomination.nomineeName.toLowerCase().includes(query) ||
+        nomination.department.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
 
   const handleEvaluate = (row: any) => {
-    console.log("Evaluate nomination:", row)
+    console.log("Evaluate nomination:", row);
     // Add evaluation logic here
-  }
+  };
 
   const columns = [
     { key: "nomineeId", label: "Nominee ID", width: "w-32" },
@@ -166,42 +260,50 @@ export default function PendingNominationsPage() {
       key: "actions",
       label: "Actions",
       width: "w-20",
-      render: (_: any, row: any) => <ActionsMenu onEvaluate={() => handleEvaluate(row)} />,
+      render: (_: any, row: any) => (
+        <ActionsMenu onEvaluate={() => handleEvaluate(row)} />
+      ),
     },
-  ]
+  ];
 
   return (
-      <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
-        {/* Header */}
-        <div className="flex flex-row justify-between items-center w-full my-2">
-          <span className="font-bold text-3xl">Pending Review</span>
-          <Button size="sm" variant="secondary">
-            <div className="px-5 py-1">Back to Dashboard</div>
-          </Button>
-        </div>
+    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
+      {/* Header */}
+      <div className="flex flex-row justify-between items-center w-full my-2">
+        <span className="font-bold text-3xl">Pending Review</span>
+        <Button size="sm" variant="secondary">
+          <div className="px-5 py-1">Back to Dashboard</div>
+        </Button>
+      </div>
 
-        {/* Description */}
-        <span className="text-lg w-full">
-          Nominations awaiting committee review and scoring.
-        </span>
+      {/* Description */}
+      <span className="text-lg w-full">
+        Nominations awaiting committee review and scoring.
+      </span>
 
       <div className="w-full bg-white rounded-lg border border-gray-200 p-8 overflow-hidden mt-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Nominations for Review</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Nominations for Review
+        </h2>
 
         <div className="mb-6">
-          <SearchBar placeholder="Search by nominee name" value={searchQuery} onChange={setSearchQuery} />
+          <SearchBar
+            placeholder="Search by nominee name"
+            value={searchQuery}
+            onChange={setSearchQuery}
+          />
         </div>
 
-      <div className="w-full overflow-hidden">
-        <ScrollableTable
-          columns={columns}
-          data={filteredNominations}
-          onActionClick={handleEvaluate}
-          headerBgColor="bg-[#8B1538]"
-          headerTextColor="text-white"
-        />
+        <div className="w-full overflow-hidden">
+          <ScrollableTable
+            columns={columns}
+            data={filteredNominations}
+            onActionClick={handleEvaluate}
+            headerBgColor="bg-[#8B1538]"
+            headerTextColor="text-white"
+          />
+        </div>
       </div>
-      </div>
-      </Section>
+    </Section>
   );
 }

@@ -1,25 +1,25 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useRef } from "react"
+import type React from "react";
+import { useState, useRef } from "react";
 
 export interface TableColumn {
-  key: string
-  label: string
-  width?: string
-  render?: (value: any, row: any) => React.ReactNode
+  key: string;
+  label: string;
+  width?: string;
+  render?: (value: any, row: any) => React.ReactNode;
 }
 
 export interface TableRow {
-  [key: string]: any
+  [key: string]: any;
 }
 
 interface ScrollableTableProps {
-  columns: TableColumn[]
-  data: TableRow[]
-  onActionClick?: (action: string, row: TableRow) => void
-  headerBgColor?: string
-  headerTextColor?: string
+  columns: TableColumn[];
+  data: TableRow[];
+  onActionClick?: (action: string, row: TableRow) => void;
+  headerBgColor?: string;
+  headerTextColor?: string;
 }
 
 export function ScrollableTable({
@@ -29,12 +29,12 @@ export function ScrollableTable({
   headerBgColor = "bg-[#8B1538]",
   headerTextColor = "text-white",
 }: ScrollableTableProps) {
-  const [hoveredRow, setHoveredRow] = useState<number | null>(null)
-  const [openMenuId, setOpenMenuId] = useState<number | null>(null)
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
 
   return (
     <div className="w-full border border-gray-200 rounded-lg overflow-hidden flex flex-col">
-      <div className="overflow-x-auto flex-1 max-h-[440px] overflow-y-auto">
+      <div className="overflow-x-auto flex-1 max-h-[1040px] overflow-y-auto">
         <div className="w-full">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
@@ -42,7 +42,9 @@ export function ScrollableTable({
                 {columns.map((column) => (
                   <th
                     key={column.key}
-                    className={`px-6 py-3 text-left text-sm font-semibold whitespace-nowrap ${column.width || "w-auto"}`}
+                    className={`px-6 py-3 text-left text-sm font-semibold whitespace-nowrap ${
+                      column.width || "w-auto"
+                    }`}
                   >
                     {column.label}
                   </th>
@@ -62,9 +64,13 @@ export function ScrollableTable({
                   {columns.map((column) => (
                     <td
                       key={`${rowIndex}-${column.key}`}
-                      className={`px-6 py-4 text-sm text-gray-700 whitespace-nowrap ${column.width || "w-auto"}`}
+                      className={`px-6 py-4 text-sm text-gray-700 whitespace-nowrap ${
+                        column.width || "w-auto"
+                      }`}
                     >
-                      {column.render ? column.render(row[column.key], row) : row[column.key]}
+                      {column.render
+                        ? column.render(row[column.key], row)
+                        : row[column.key]}
                     </td>
                   ))}
                 </tr>
@@ -74,15 +80,15 @@ export function ScrollableTable({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 interface StatusBadgeProps {
-  status: "Qualified" | "Disqualified"
+  status: "Qualified" | "Disqualified";
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const isQualified = status === "Qualified"
+  const isQualified = status === "Qualified";
   return (
     <span
       className={`inline-block px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
@@ -91,16 +97,16 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     >
       {status}
     </span>
-  )
+  );
 }
 
 interface ActionsMenuProps {
-  onEvaluate?: () => void
+  onEvaluate?: () => void;
 }
 
 export function ActionsMenu({ onEvaluate }: ActionsMenuProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -116,8 +122,8 @@ export function ActionsMenu({ onEvaluate }: ActionsMenuProps) {
         <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
           <button
             onClick={() => {
-              onEvaluate?.()
-              setIsOpen(false)
+              onEvaluate?.();
+              setIsOpen(false);
             }}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors first:rounded-t-lg last:rounded-b-lg"
           >
@@ -126,5 +132,5 @@ export function ActionsMenu({ onEvaluate }: ActionsMenuProps) {
         </div>
       )}
     </div>
-  )
+  );
 }

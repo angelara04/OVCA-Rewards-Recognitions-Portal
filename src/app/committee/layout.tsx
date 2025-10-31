@@ -21,7 +21,7 @@ export default function CommitteeLayout({
       <Greeting Fname={Fname} role={role} />
 
       {/* Sidebar + Main content */}
-      <div className="flex flex-row w-full h-full gap-2 p-5 overflow-x-hidden">
+      <div className="flex flex-row w-full h-full gap-2 p-5">
         <Sidebar role={role} />
         <div className="flex-1 min-w-0 h-full">{children}</div>
       </div>
