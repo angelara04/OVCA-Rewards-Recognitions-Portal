@@ -15,9 +15,13 @@ interface TableProps<T> {
   renderActions?: (row: T, index: number) => React.ReactNode;
 }
 
-export default function Table<T>({ columns, data, renderActions }: TableProps<T>) {
+export default function Table<T>({
+  columns,
+  data,
+  renderActions,
+}: TableProps<T>) {
   return (
-    <div className="overflow-auto border border-[var(--outline-grey)] rounded-md flex-1 max-h-[60vh]">
+    <div className="overflow-auto border border-[var(--outline-grey)] rounded-md flex-1 h-[60vh]">
       <table className="w-full text-xs border-collapse min-w-[1400px]">
         {/* Header */}
         <thead>
@@ -45,16 +49,23 @@ export default function Table<T>({ columns, data, renderActions }: TableProps<T>
         {/* Body */}
         <tbody className="bg-white text-gray-800">
           {data.map((row, i) => (
-            <tr key={i} className="border-b border-[var(--outline-grey)] hover:bg-gray-50 transition-colors">
+            <tr
+              key={i}
+              className="border-b border-[var(--outline-grey)] hover:bg-gray-50 transition-colors"
+            >
               {columns.map((col, idx) => {
                 const value = (row as any)[col.key];
                 const isLast = idx === columns.length - 1;
 
                 // Role column
                 if (col.key === "role") {
-                  const normalized = typeof value === "string" ? value.toLowerCase() : value;
-                  const normalizedKey =
-                    normalized.includes("hr") ? "hr" : normalized.includes("committee") ? "committee" : "nominator";
+                  const normalized =
+                    typeof value === "string" ? value.toLowerCase() : value;
+                  const normalizedKey = normalized.includes("hr")
+                    ? "hr"
+                    : normalized.includes("committee")
+                    ? "committee"
+                    : "nominator";
                   return (
                     <td
                       key={col.key}
@@ -85,11 +96,17 @@ export default function Table<T>({ columns, data, renderActions }: TableProps<T>
 
                 // Status column
                 if (col.key === "status") {
-                  const statusVal = (value as string) as "pending" | "approved" | "rejected";
+                  const statusVal = value as string as
+                    | "pending"
+                    | "approved"
+                    | "rejected";
                   return (
                     <td
                       key={col.key}
-                      className={clsx("py-3 px-4", !isLast && "border-r border-[var(--outline-grey)]")}
+                      className={clsx(
+                        "py-3 px-4",
+                        !isLast && "border-r border-[var(--outline-grey)]"
+                      )}
                     >
                       <Status status={statusVal} />
                     </td>
@@ -100,7 +117,10 @@ export default function Table<T>({ columns, data, renderActions }: TableProps<T>
                 return (
                   <td
                     key={col.key}
-                    className={clsx("py-3 px-4", !isLast && "border-r border-[var(--outline-grey)]")}
+                    className={clsx(
+                      "py-3 px-4",
+                      !isLast && "border-r border-[var(--outline-grey)]"
+                    )}
                   >
                     {(value ?? "").toString()}
                   </td>
