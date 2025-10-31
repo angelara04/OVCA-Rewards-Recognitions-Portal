@@ -88,7 +88,7 @@ export default function ProgressCard({
 
   return (
     <motion.div
-      className="flex items-center gap-4 border-[var(--outline-grey)] border-1 rounded-2xl p-6  bg-white w-[450px]"
+      className="flex items-center gap-4 border-[var(--outline-grey)] border-1 rounded-2xl p-6  bg-white max-w-[450px] w-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}

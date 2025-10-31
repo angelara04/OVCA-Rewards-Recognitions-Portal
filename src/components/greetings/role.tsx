@@ -5,7 +5,7 @@ export default function Role({ role }: { role: string }) {
 
   const roleStyle =
     key === "hr"
-      ? "bg-[var(--maroon)] text-[var(--white)]"
+      ? "bg-[var(--maroon)] text-[var(--white)] "
       : key === "committee"
       ? "bg-[var(--light-green)] text-[var(--forest-green)]"
       : key === "nominator"
@@ -13,10 +13,16 @@ export default function Role({ role }: { role: string }) {
       : "bg-[var(--category-grey)] text-[var(--dark-grey)]";
 
   const displayRole =
-    key === "hr" ? "HR SuperAdmin" : key === "committee" ? "Committee" : key === "nominator" ? "Nominator" : role;
+    key === "hr"
+      ? "HR SuperAdmin"
+      : key === "committee"
+      ? "Committee"
+      : key === "nominator"
+      ? "Nominator"
+      : role;
 
   return (
-    <div className={`px-3 py-1 rounded-full text-xs font-medium ${roleStyle}`}>
+    <div className={`px-3 py-1 rounded-full text-xs font-medium  ${roleStyle}`}>
       {displayRole}
     </div>
   );

@@ -13,7 +13,11 @@ interface DropdownMenuProps {
   onCloseAction: () => void;
 }
 
-export default function DropdownMenu({ items, position, onCloseAction }: DropdownMenuProps) {
+export default function DropdownMenu({
+  items,
+  position,
+  onCloseAction,
+}: DropdownMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -29,13 +33,15 @@ export default function DropdownMenu({ items, position, onCloseAction }: Dropdow
   return (
     <div
       ref={ref}
-      className="absolute bg-white border border-gray-200 rounded-md shadow-md text-sm z-50"
+      className="absolute left-0 top-0 bg-white border border-gray-200 rounded-md shadow-md text-sm z-50"
       style={{ top: position.top, left: position.left }}
     >
       {items.map((item, index) => (
         <button
           key={index}
-          className={`block w-full text-left px-4 py-2 hover:bg-gray-50 ${item.color || "text-gray-700"}`}
+          className={`block w-full text-left px-4 py-2 hover:bg-gray-50 ${
+            item.color || "text-gray-700"
+          }`}
           onClick={item.onClickAction}
         >
           {item.label}

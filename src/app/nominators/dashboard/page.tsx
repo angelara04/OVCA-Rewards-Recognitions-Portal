@@ -29,7 +29,11 @@ export default function DashboardPage() {
   ];
 
   return (
-    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
+    <Section
+      width="w-full"
+      height="min-h-screen"
+      alignment="items-center p-10 "
+    >
       <div className="flex flex-row justify-between items-center w-full my-2">
         <span className="font-bold text-3xl">Nominator Dashboard</span>
         <Button size="sm" variant="primary">
@@ -43,11 +47,11 @@ export default function DashboardPage() {
       </span>
 
       {/* Cards section */}
-      <div className="w-full flex flex-col gap-2 sm:flex-row">
-        <Card description="Draft" number={10} />
-        <Card description="Submitted" number={5} />
+      <div className="w-full flex flex-col gap-2 sm:flex-row mb-5">
+        <Card description="Draft Nominations" number={10} />
+        <Card description="Submitted Entries" number={5} />
         <Card description="Under Review" number={20} />
-        <Card description="Finalized" number={20} />
+        <Card description="Finalized Awards" number={20} />
       </div>
 
       {/* Table section */}
