@@ -34,7 +34,7 @@ export function ScrollableTable({
 
   return (
     <div className="w-full border border-gray-200 rounded-lg overflow-hidden flex flex-col">
-      <div className="overflow-x-auto flex-1 max-h-[600px] overflow-y-auto">
+      <div className="overflow-x-auto flex-1 max-h-[440px] overflow-y-auto">
         <div className="w-full">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">

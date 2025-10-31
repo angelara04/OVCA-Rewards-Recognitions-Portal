@@ -27,7 +27,7 @@ const PENDING_NOMINATIONS_DATA = [
     nominatorName: "Maria Santos",
     dateSubmitted: "10/14/2025",
     department: "Operations",
-    status: "Complete" as const,
+    status: "In Progress" as const,
   },
   {
     nomineeId: "E01250127",
@@ -37,7 +37,7 @@ const PENDING_NOMINATIONS_DATA = [
     nominatorName: "Pedro Lopez",
     dateSubmitted: "10/13/2025",
     department: "Technology",
-    status: "Complete" as const,
+    status: "In Progress" as const,
   },
   {
     nomineeId: "E01250128",
@@ -57,7 +57,7 @@ const PENDING_NOMINATIONS_DATA = [
     nominatorName: "Miguel Torres",
     dateSubmitted: "10/11/2025",
     department: "Human Resources",
-    status: "In Progress" as const,
+    status: "Not Started" as const,
   },
   {
     nomineeId: "E01250130",
@@ -87,7 +87,7 @@ const PENDING_NOMINATIONS_DATA = [
     nominatorName: "Lucia Vargas",
     dateSubmitted: "10/08/2025",
     department: "Finance",
-    status: "Complete" as const,
+    status: "In Progress" as const,
   },
   {
     nomineeId: "E01250133",
@@ -127,7 +127,7 @@ const PENDING_NOMINATIONS_DATA = [
     nominatorName: "Mariana Acosta",
     dateSubmitted: "10/04/2025",
     department: "Finance",
-    status: "Complete" as const,
+    status: "Not Started" as const,
   },
 ]
 
@@ -171,7 +171,7 @@ export default function PendingNominationsPage() {
   ]
 
   return (
-      <Section width="w-[86%]" height="min-h-screen" alignment="items-center p-10">
+      <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
         {/* Header */}
         <div className="flex flex-row justify-between items-center w-full my-2">
           <span className="font-bold text-3xl">Pending Review</span>
@@ -189,7 +189,7 @@ export default function PendingNominationsPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Nominations for Review</h2>
 
         <div className="mb-6">
-          <SearchBar placeholder="Search by name or category" value={searchQuery} onChange={setSearchQuery} />
+          <SearchBar placeholder="Search by nominee name" value={searchQuery} onChange={setSearchQuery} />
         </div>
 
       <div className="w-full overflow-hidden">
