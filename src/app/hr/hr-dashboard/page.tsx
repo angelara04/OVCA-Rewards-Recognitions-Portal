@@ -5,8 +5,7 @@ import Card from "@/components/card";
 import Button from "@/components/button";
 import ProgressCard from "@/components/progressCard";
 import Section from "@/components/section";
-import ActionModal from "@/components/actionModal";
-import AlertBanner from "@/components/alertBanner";
+
 import { MoveRight } from "lucide-react";
 
 export default function Page() {
@@ -75,24 +74,6 @@ export default function Page() {
           />
         </div>
       </Section>
-
-      {/* ✅ Action Modal  Sample Use*/}
-      <ActionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onConfirm={handleConfirm}
-        variant="warning" // can be "reject" or "warning"
-      />
-
-      {showAlert && (
-        <AlertBanner
-          title="Alert: Portal Settings > Error Dates"
-          message="Invalid date input. Please ensure both start and end dates are entered correctly."
-          variant="error" // or "warning", "success"
-          onClose={() => setShowAlert(false)}
-          duration={7000} // 5 seconds
-        />
-      )}
     </Section>
   );
 }
