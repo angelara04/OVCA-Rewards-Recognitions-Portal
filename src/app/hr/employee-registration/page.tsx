@@ -7,6 +7,7 @@ import SearchBar from "@/components/search-bar";
 import Table, { Column } from "@/components/table/employee-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
+import Section from "@/components/section";
 
 type TabKey = "all" | "pending" | "approved" | "rejected";
 
@@ -28,24 +29,22 @@ export default function Page() {
   const [modalData, setModalData] = useState<{ action: "approve" | "reject"; name: string } | null>(null);
 
   // Sample Data (only Nominator roles)
-const data: Employee[] = Array(25)
-  .fill(null)
-  .map((_, i) => {
-    // only use pending and approved for demo
-    const status: TabKey = i % 8 === 0 ? "approved" : "pending";
-    const date = new Date(Date.now() - i * 86400000);
-    const dateRegistered = date.toLocaleDateString("en-PH");
-    return {
-      id: `E0125${1000 + i}`,
-      name: `Maria Del Santos ${i + 1}`,
-      role: "Nominator",
-      department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
-      email: `maria.delsantos${i + 1}@up.edu.ph`,
-      status,
-      dateRegistered,
-    };
-  });
-
+  const data: Employee[] = Array(25)
+    .fill(null)
+    .map((_, i) => {
+      const status: TabKey = i % 8 === 0 ? "approved" : "pending";
+      const date = new Date(Date.now() - i * 86400000);
+      const dateRegistered = date.toLocaleDateString("en-PH");
+      return {
+        id: `E0125${1000 + i}`,
+        name: `Maria Del Santos ${i + 1}`,
+        role: "Nominator",
+        department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
+        email: `maria.delsantos${i + 1}@up.edu.ph`,
+        status,
+        dateRegistered,
+      };
+    });
 
   // Counts
   const counts = useMemo(
@@ -88,9 +87,9 @@ const data: Employee[] = Array(25)
   ];
 
   return (
-    <div className="w-full px-12 py-8 min-h-screen">
+    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       {/* Header */}
-      <div className="flex items-start justify-between mb-10">
+      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">Employee Registration</h1>
           <p className="text-base text-[var(--dark-grey)]">
@@ -103,10 +102,12 @@ const data: Employee[] = Array(25)
       </div>
 
       {/* Tabs */}
-      <TabsLift tabs={tabs} activeKey={activeTab} onChangeAction={(key: TabKey) => setActiveTab(key)} />
+      <div className="w-full max-w-6xl">
+        <TabsLift tabs={tabs} activeKey={activeTab} onChangeAction={(key: TabKey) => setActiveTab(key)} />
+      </div>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
+      <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
         {/* Search */}
         <SearchBar
           value={searchQuery}
@@ -132,7 +133,7 @@ const data: Employee[] = Array(25)
                       disabled={!isPending}
                       className={`${iconColor} ${cursor}`}
                       onClick={(e) => {
-                        if (!isPending) return; // prevent click if not pending
+                        if (!isPending) return;
                         const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                         const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
                         setDropdownPosition({
@@ -190,14 +191,12 @@ const data: Employee[] = Array(25)
             action={modalData.action}
             onCancelAction={() => setModalData(null)}
             onConfirmAction={() => {
-              alert(
-                `${modalData.action === "approve" ? "Approved" : "Rejected"} ${modalData.name}`
-              );
+              alert(`${modalData.action === "approve" ? "Approved" : "Rejected"} ${modalData.name}`);
               setModalData(null);
             }}
           />
         )}
       </div>
-    </div>
+    </Section>
   );
 }
