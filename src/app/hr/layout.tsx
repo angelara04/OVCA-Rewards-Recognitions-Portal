@@ -11,7 +11,7 @@ export default function CommitteeLayout({
   const Fname = "Joan Smith"; // temporary placeholder
 
   return (
-    <div className="flex flex-col w-full h-full min-h-screen ">
+    <div className="flex flex-col w-full h-full min-h-screen">
       {/* Header */}
       <div className="h-auto">
         <Header />
@@ -21,9 +21,12 @@ export default function CommitteeLayout({
       <Greeting Fname={Fname} role={role} />
 
       {/* Sidebar + Main content */}
-      <div className="flex flex-row  w-full h-full gap-2 p-5">
+      <div className="flex flex-row w-full h-full gap-2 p-5">
+        {/* Sidebar stays fixed */}
         <Sidebar role={role} />
-        <div className="w-full h-full">{children}</div>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0 h-full">{children}</div>
       </div>
     </div>
   );
