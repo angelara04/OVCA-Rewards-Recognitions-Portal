@@ -1,25 +1,19 @@
-// src/components/table/status-badge.tsx
-import React from "react";
-
-interface StatusProps {
-  status: "pending" | "approved" | "rejected";
+interface StatusBadgeProps {
+  status: "In Progress" | "Complete" | "Not Started" | "Pending" | "Approved" | "Rejected";
 }
 
-export default function Status({ status }: StatusProps) {
-  const colorClass =
-    status === "pending"
-      ? "bg-[var(--light-yellow)] text-yellow-800"
-      : status === "approved"
-      ? "bg-[var(--light-green)] text-[var(--forest-green)]"
-      : "bg-[var(--light-red)] text-[var(--maroon)]";
+export function StatusBadge({ status }: StatusBadgeProps) {
+  const statusStyles = {
+    "In Progress": "bg-[var(--light-purple)] text-[var(--dark-purple)]",
+    Complete: "bg-[var(--light-green)] text-[var(--forest-green)]",
+    "Not Started": "bg-[var(--light-red)] text-[var(--maroon)]",
+    Pending: "bg-[var(--light-yellow)] text-yellow-800",
+    Approved: "bg-[var(--light-green)] text-[var(--forest-green)]",
+    Rejected: "bg-[var(--light-red)] text-[var(--maroon)]",
+  }
 
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
 
   return (
-    <div
-      className={`w-25 px-3 py-1 rounded-md text-xs font-medium flex items-center justify-center ${colorClass}`}
-    >
-      {label}
-    </div>
+    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusStyles[status]}`}>{status}</span>
   );
 }

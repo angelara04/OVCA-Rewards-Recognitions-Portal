@@ -40,7 +40,7 @@ export default function Sidebar({ role }: SidebarProps) {
   return (
     <Section
       height="h-full"
-      width="max-w-[20%] w-full min-w-[150px] flex min-h-screen sticky top-0"
+      width="max-w-[20%] w-full min-w-[300px] flex min-h-screen sticky top-0"
       alignment=""
     >
       <div className=" w-full h-full">
