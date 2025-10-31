@@ -27,22 +27,27 @@ export default function Page() {
   const [modalData, setModalData] = useState<{ action: "approve" | "reject"; name: string } | null>(null);
 
   // Sample Data
-  const data: Employee[] = Array(25).fill(null).map((_, i) => ({
-    id: `E0125${1000 + i}`,
-    name: `Maria Del Santos ${i + 1}`,
-    role: "Nominator",
-    department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
-    email: `maria.delsantos${i + 1}@up.edu.ph`,
-    status: i % 8 === 0 ? "approved" : "pending", // rejected intentionally empty
-  }));
+  const data: Employee[] = Array(25)
+    .fill(null)
+    .map((_, i) => ({
+      id: `E0125${1000 + i}`,
+      name: `Maria Del Santos ${i + 1}`,
+      role: "Nominator",
+      department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
+      email: `maria.delsantos${i + 1}@up.edu.ph`,
+      status: i % 8 === 0 ? "approved" : "pending",
+    }));
 
   // Counts
-  const counts = useMemo(() => ({
-    all: data.length,
-    pending: data.filter(d => d.status === "pending").length,
-    approved: data.filter(d => d.status === "approved").length,
-    rejected: data.filter(d => d.status === "rejected").length,
-  }), [data]);
+  const counts = useMemo(
+    () => ({
+      all: data.length,
+      pending: data.filter((d) => d.status === "pending").length,
+      approved: data.filter((d) => d.status === "approved").length,
+      rejected: data.filter((d) => d.status === "rejected").length,
+    }),
+    [data]
+  );
 
   // Tabs
   const tabs = [
@@ -54,9 +59,11 @@ export default function Page() {
 
   // Filtered Data
   const filteredData = useMemo(() => {
-    const base = activeTab === "all" ? data : data.filter(d => d.status === activeTab);
+    const base = activeTab === "all" ? data : data.filter((d) => d.status === activeTab);
     if (!searchQuery.trim()) return base;
-    return base.filter(d => Object.values(d).some(val => String(val).toLowerCase().includes(searchQuery.toLowerCase())));
+    return base.filter((d) =>
+      Object.values(d).some((val) => String(val).toLowerCase().includes(searchQuery.toLowerCase()))
+    );
   }, [activeTab, searchQuery, data]);
 
   const hasResults = filteredData.length > 0;
@@ -79,15 +86,13 @@ export default function Page() {
             Review and verify employee registrations for nomination eligibility
           </p>
         </div>
-        <Button variant="secondary" size="md">Back to Dashboard</Button>
+        <Button variant="secondary" size="md">
+          Back to Dashboard
+        </Button>
       </div>
 
       {/* Tabs */}
-      <TabsLift
-        tabs={tabs}
-        activeKey={activeTab}
-        onChangeAction={(key: TabKey) => setActiveTab(key)}
-      />
+      <TabsLift tabs={tabs} activeKey={activeTab} onChangeAction={(key: TabKey) => setActiveTab(key)} />
 
       {/* Content */}
       <div className="max-w-6xl mx-auto w-full bg-white border border-gray-200 rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
@@ -98,34 +103,38 @@ export default function Page() {
           placeholder="Search by name, department, or email"
         />
 
-        {/* Table */}
-        {hasResults ? (
-          <Table
-            columns={columns}
-            data={filteredData}
-            renderActions={(row, i) => (
-              <button
-                className="text-gray-700 hover:text-gray-900"
-                onClick={(e) => {
-                  const buttonRect = (e.target as HTMLElement).closest("button")!.getBoundingClientRect();
-                  const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
-                  setDropdownPosition({
-                    top: buttonRect.bottom - containerRect.top + 4,
-                    left: buttonRect.left - containerRect.left - 90,
-                  });
-                  setOpenDropdownIndex(openDropdownIndex === i ? null : i);
-                }}
-              >
-                <MoreHorizontal size={18} />
-              </button>
-            )}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center flex-1 text-gray-500 mt-20">
-            <FolderX size={64} className="mb-4 opacity-70" />
-            <p className="text-lg font-medium">No Results Found</p>
-          </div>
-        )}
+        {/* Table Container */}
+        <div className="mt-4 border border-gray-300 rounded-md bg-white min-h-[60vh] flex flex-col w-full relative">
+          {hasResults ? (
+            <div className="w-full overflow-auto">
+              <Table
+                columns={columns}
+                data={filteredData}
+                renderActions={(row, i) => (
+                  <button
+                    className="text-gray-700 hover:text-gray-900"
+                    onClick={(e) => {
+                      const buttonRect = (e.target as HTMLElement).closest("button")!.getBoundingClientRect();
+                      const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                      setDropdownPosition({
+                        top: buttonRect.bottom - containerRect.top + 4,
+                        left: buttonRect.left - containerRect.left - 90,
+                      });
+                      setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                    }}
+                  >
+                    <MoreHorizontal size={18} />
+                  </button>
+                )}
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
+              <FolderX size={100} className="mb-4 opacity-70" />
+              <p className="font-bold text-3xl">No Results Found</p>
+            </div>
+          )}
+        </div>
 
         {/* Dropdown */}
         {typeof window !== "undefined" && openDropdownIndex !== null && dropdownPosition && (
@@ -136,23 +145,24 @@ export default function Page() {
               {
                 label: "Approve",
                 color: "text-[var(--forest-green)]",
-                onClickAction: () => setModalData({
-                  action: "approve",
-                  name: filteredData[openDropdownIndex!].name
-                })
+                onClickAction: () =>
+                  setModalData({
+                    action: "approve",
+                    name: filteredData[openDropdownIndex!].name,
+                  }),
               },
               {
                 label: "Reject",
                 color: "text-red-600",
-                onClickAction: () => setModalData({
-                  action: "reject",
-                  name: filteredData[openDropdownIndex!].name
-                })
-              }
+                onClickAction: () =>
+                  setModalData({
+                    action: "reject",
+                    name: filteredData[openDropdownIndex!].name,
+                  }),
+              },
             ]}
           />
         )}
-
 
         {/* Confirm Modal */}
         {modalData && (
@@ -160,7 +170,9 @@ export default function Page() {
             action={modalData.action}
             onCancelAction={() => setModalData(null)}
             onConfirmAction={() => {
-              alert(`${modalData.action === "approve" ? "Approved" : "Rejected"} ${modalData.name}`);
+              alert(
+                `${modalData.action === "approve" ? "Approved" : "Rejected"} ${modalData.name}`
+              );
               setModalData(null);
             }}
           />
