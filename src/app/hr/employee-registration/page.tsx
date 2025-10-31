@@ -17,6 +17,7 @@ interface Employee {
   department: string;
   email: string;
   status: TabKey;
+  dateRegistered: string;
 }
 
 export default function Page() {
@@ -26,17 +27,25 @@ export default function Page() {
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const [modalData, setModalData] = useState<{ action: "approve" | "reject"; name: string } | null>(null);
 
-  // Sample Data
-  const data: Employee[] = Array(25)
-    .fill(null)
-    .map((_, i) => ({
+  // Sample Data (only Nominator roles)
+const data: Employee[] = Array(25)
+  .fill(null)
+  .map((_, i) => {
+    // only use pending and approved for demo
+    const status: TabKey = i % 8 === 0 ? "approved" : "pending";
+    const date = new Date(Date.now() - i * 86400000);
+    const dateRegistered = date.toLocaleDateString("en-PH");
+    return {
       id: `E0125${1000 + i}`,
       name: `Maria Del Santos ${i + 1}`,
       role: "Nominator",
       department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
       email: `maria.delsantos${i + 1}@up.edu.ph`,
-      status: i % 8 === 0 ? "approved" : "pending",
-    }));
+      status,
+      dateRegistered,
+    };
+  });
+
 
   // Counts
   const counts = useMemo(
@@ -74,15 +83,17 @@ export default function Page() {
     { key: "role", label: "Role" },
     { key: "department", label: "Department" },
     { key: "email", label: "Email" },
+    { key: "dateRegistered", label: "Date Registered" },
+    { key: "status", label: "Status" },
   ];
 
   return (
-    <div className="w-full bg-[#fafafa] px-12 py-8 min-h-screen">
+    <div className="w-full px-12 py-8 min-h-screen">
       {/* Header */}
       <div className="flex items-start justify-between mb-10">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">Employee Registration</h1>
-          <p className="text-base text-gray-600">
+          <p className="text-base text-[var(--dark-grey)]">
             Review and verify employee registrations for nomination eligibility
           </p>
         </div>
@@ -95,7 +106,7 @@ export default function Page() {
       <TabsLift tabs={tabs} activeKey={activeTab} onChangeAction={(key: TabKey) => setActiveTab(key)} />
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto w-full bg-white border border-gray-200 rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
+      <div className="max-w-6xl mx-auto w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
         {/* Search */}
         <SearchBar
           value={searchQuery}
@@ -104,28 +115,37 @@ export default function Page() {
         />
 
         {/* Table Container */}
-        <div className="mt-4 border border-gray-300 rounded-md bg-white min-h-[60vh] flex flex-col w-full relative">
+        <div className="mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
           {hasResults ? (
             <div className="w-full overflow-auto">
               <Table
                 columns={columns}
                 data={filteredData}
-                renderActions={(row, i) => (
-                  <button
-                    className="text-gray-700 hover:text-gray-900"
-                    onClick={(e) => {
-                      const buttonRect = (e.target as HTMLElement).closest("button")!.getBoundingClientRect();
-                      const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
-                      setDropdownPosition({
-                        top: buttonRect.bottom - containerRect.top + 4,
-                        left: buttonRect.left - containerRect.left - 90,
-                      });
-                      setOpenDropdownIndex(openDropdownIndex === i ? null : i);
-                    }}
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                )}
+                renderActions={(row, i) => {
+                  const employee = filteredData[i];
+                  const isPending = employee.status === "pending";
+                  const iconColor = isPending ? "text-[var(--maroon)]" : "text-[var(--outline-grey)]";
+                  const cursor = isPending ? "cursor-pointer" : "cursor-not-allowed";
+
+                  return (
+                    <button
+                      disabled={!isPending}
+                      className={`${iconColor} ${cursor}`}
+                      onClick={(e) => {
+                        if (!isPending) return; // prevent click if not pending
+                        const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                        setDropdownPosition({
+                          top: buttonRect.bottom - containerRect.top + 4,
+                          left: buttonRect.left - containerRect.left - 90,
+                        });
+                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                      }}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  );
+                }}
               />
             </div>
           ) : (
@@ -153,7 +173,7 @@ export default function Page() {
               },
               {
                 label: "Reject",
-                color: "text-red-600",
+                color: "text-[var(--maroon)]",
                 onClickAction: () =>
                   setModalData({
                     action: "reject",

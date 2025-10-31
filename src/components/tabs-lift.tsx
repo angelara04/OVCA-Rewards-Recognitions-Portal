@@ -18,8 +18,8 @@ interface TabsLiftProps {
 
 export default function TabsLift({ tabs, activeKey, onChangeAction }: TabsLiftProps) {
   return (
-    <div className="w-full bg-[#fafafa] flex justify-center">
-      <div className="flex w-full max-w-6xl">
+    <div className="w-full flex justify-center bg-[var(--white)]">
+      <div className="flex w-full max-w-6xl relative">
         {tabs.map((tab) => {
           const isActive = activeKey === tab.key;
           return (
@@ -27,20 +27,20 @@ export default function TabsLift({ tabs, activeKey, onChangeAction }: TabsLiftPr
               key={tab.key}
               onClick={() => onChangeAction(tab.key)}
               className={clsx(
-                "flex-1 text-center py-4 text-[19px] font-semibold rounded-t-xl transition-all relative",
+                "flex-1 text-center py-4 text-[19px] rounded-t-xl relative font-bold transition-all duration-150 ease-out",
                 isActive
-                  ? "bg-white text-[#7b1020] shadow-[0_-1px_3px_rgba(0,0,0,0.05)] z-10"
-                  : "bg-[#fafafa] text-[var(--black)] hover:text-[#7b1020]"
+                  ? "bg-[var(--white)] text-[var(--maroon)] border border-[var(--outline-grey)] border-b-0 z-10"
+                  : "bg-[var(--white)] text-[var(--black)] hover:text-[var(--maroon)]"
               )}
               style={{
-                borderBottom: isActive ? "none" : "2px solid #e5e5e5",
+                borderBottom: isActive ? "none" : "2px solid var(--outline-grey)",
               }}
             >
               {tab.label}
               <span
                 className={clsx(
-                  "ml-1 text-[19px] font-semibold",
-                  isActive ? "text-[#7b1020]" : "text-gray-600"
+                  "ml-1 text-[19px] transition-colors duration-150 ease-out font-bold",
+                  isActive ? "text-[var(--maroon)]" : "text-[var(--black)]"
                 )}
               >
                 ({tab.count})
