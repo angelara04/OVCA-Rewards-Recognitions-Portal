@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import { FolderX, MoreHorizontal } from "lucide-react";
 import TabsLift from "@/components/tabs-lift";
 import Button from "@/components/button";
-import SearchBar from "@/components/search-bar";
+import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/employee-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
@@ -24,9 +24,17 @@ interface Employee {
 export default function Page() {
   const [activeTab, setActiveTab] = useState<TabKey>("pending");
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const [modalData, setModalData] = useState<{ action: "approve" | "reject"; name: string } | null>(null);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+    null
+  );
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [modalData, setModalData] = useState<{
+    action: "approve" | "reject";
+    name: string;
+  } | null>(null);
 
   // Sample Data (only Nominator roles)
   const data: Employee[] = Array(25)
@@ -39,7 +47,8 @@ export default function Page() {
         id: `E0125${1000 + i}`,
         name: `Maria Del Santos ${i + 1}`,
         role: "Nominator",
-        department: "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
+        department:
+          "Office of the Vice Chancellor for Academic Affairs and Community Engagement",
         email: `maria.delsantos${i + 1}@up.edu.ph`,
         status,
         dateRegistered,
@@ -67,10 +76,13 @@ export default function Page() {
 
   // Filtered Data
   const filteredData = useMemo(() => {
-    const base = activeTab === "all" ? data : data.filter((d) => d.status === activeTab);
+    const base =
+      activeTab === "all" ? data : data.filter((d) => d.status === activeTab);
     if (!searchQuery.trim()) return base;
     return base.filter((d) =>
-      Object.values(d).some((val) => String(val).toLowerCase().includes(searchQuery.toLowerCase()))
+      Object.values(d).some((val) =>
+        String(val).toLowerCase().includes(searchQuery.toLowerCase())
+      )
     );
   }, [activeTab, searchQuery, data]);
 
@@ -91,7 +103,9 @@ export default function Page() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">Employee Registration</h1>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Employee Registration
+          </h1>
           <p className="text-base text-[var(--dark-grey)]">
             Review and verify employee registrations for nomination eligibility
           </p>
@@ -103,7 +117,11 @@ export default function Page() {
 
       {/* Tabs */}
       <div className="w-full max-w-6xl">
-        <TabsLift tabs={tabs} activeKey={activeTab} onChangeAction={(key: TabKey) => setActiveTab(key)} />
+        <TabsLift
+          tabs={tabs}
+          activeKey={activeTab}
+          onChangeAction={(key: TabKey) => setActiveTab(key)}
+        />
       </div>
 
       {/* Content */}
@@ -111,7 +129,7 @@ export default function Page() {
         {/* Search */}
         <SearchBar
           value={searchQuery}
-          onChangeAction={setSearchQuery}
+          onChange={(val: string) => setSearchQuery(val)}
           placeholder="Search by name, department, or email"
         />
 
@@ -125,8 +143,12 @@ export default function Page() {
                 renderActions={(row, i) => {
                   const employee = filteredData[i];
                   const isPending = employee.status === "pending";
-                  const iconColor = isPending ? "text-[var(--maroon)]" : "text-[var(--outline-grey)]";
-                  const cursor = isPending ? "cursor-pointer" : "cursor-not-allowed";
+                  const iconColor = isPending
+                    ? "text-[var(--maroon)]"
+                    : "text-[var(--outline-grey)]";
+                  const cursor = isPending
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed";
 
                   return (
                     <button
@@ -134,13 +156,19 @@ export default function Page() {
                       className={`${iconColor} ${cursor}`}
                       onClick={(e) => {
                         if (!isPending) return;
-                        const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                        const buttonRect = (
+                          e.currentTarget as HTMLElement
+                        ).getBoundingClientRect();
+                        const containerRect = document
+                          .querySelector(".content-area")!
+                          .getBoundingClientRect();
                         setDropdownPosition({
                           top: buttonRect.bottom - containerRect.top + 4,
                           left: buttonRect.left - containerRect.left - 90,
                         });
-                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                        setOpenDropdownIndex(
+                          openDropdownIndex === i ? null : i
+                        );
                       }}
                     >
                       <MoreHorizontal size={18} />
@@ -158,32 +186,34 @@ export default function Page() {
         </div>
 
         {/* Dropdown */}
-        {typeof window !== "undefined" && openDropdownIndex !== null && dropdownPosition && (
-          <DropdownMenu
-            position={dropdownPosition}
-            onCloseAction={() => setOpenDropdownIndex(null)}
-            items={[
-              {
-                label: "Approve",
-                color: "text-[var(--forest-green)]",
-                onClickAction: () =>
-                  setModalData({
-                    action: "approve",
-                    name: filteredData[openDropdownIndex!].name,
-                  }),
-              },
-              {
-                label: "Reject",
-                color: "text-[var(--maroon)]",
-                onClickAction: () =>
-                  setModalData({
-                    action: "reject",
-                    name: filteredData[openDropdownIndex!].name,
-                  }),
-              },
-            ]}
-          />
-        )}
+        {typeof window !== "undefined" &&
+          openDropdownIndex !== null &&
+          dropdownPosition && (
+            <DropdownMenu
+              position={dropdownPosition}
+              onCloseAction={() => setOpenDropdownIndex(null)}
+              items={[
+                {
+                  label: "Approve",
+                  color: "text-[var(--forest-green)]",
+                  onClickAction: () =>
+                    setModalData({
+                      action: "approve",
+                      name: filteredData[openDropdownIndex!].name,
+                    }),
+                },
+                {
+                  label: "Reject",
+                  color: "text-[var(--maroon)]",
+                  onClickAction: () =>
+                    setModalData({
+                      action: "reject",
+                      name: filteredData[openDropdownIndex!].name,
+                    }),
+                },
+              ]}
+            />
+          )}
 
         {/* Confirm Modal */}
         {modalData && (
@@ -191,7 +221,11 @@ export default function Page() {
             action={modalData.action}
             onCancelAction={() => setModalData(null)}
             onConfirmAction={() => {
-              alert(`${modalData.action === "approve" ? "Approved" : "Rejected"} ${modalData.name}`);
+              alert(
+                `${modalData.action === "approve" ? "Approved" : "Rejected"} ${
+                  modalData.name
+                }`
+              );
               setModalData(null);
             }}
           />
