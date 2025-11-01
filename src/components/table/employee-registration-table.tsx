@@ -2,7 +2,7 @@
 import React from "react";
 import clsx from "clsx";
 import Role from "@/components/greetings/role";
-import Status from "@/components/table/status-badge";
+import { StatusBadge } from "@/components/table/status-badge";
 
 export interface Column {
   key: string;
@@ -96,10 +96,22 @@ export default function Table<T>({
 
                 // Status column
                 if (col.key === "status") {
-                  const statusVal = value as string as
-                    | "pending"
-                    | "approved"
-                    | "rejected";
+                  const statusStr =
+                    typeof value === "string" ? value.toLowerCase() : "";
+                  const mappedStatus =
+                    statusStr === "pending"
+                      ? "Pending"
+                      : statusStr === "approved"
+                      ? "Approved"
+                      : statusStr === "rejected"
+                      ? "Rejected"
+                      : (value as
+                          | "In Progress"
+                          | "Complete"
+                          | "Not Started"
+                          | "Pending"
+                          | "Approved"
+                          | "Rejected");
                   return (
                     <td
                       key={col.key}
@@ -108,7 +120,7 @@ export default function Table<T>({
                         !isLast && "border-r border-[var(--outline-grey)]"
                       )}
                     >
-                      <Status status={statusVal} />
+                      <StatusBadge status={mappedStatus} />
                     </td>
                   );
                 }
