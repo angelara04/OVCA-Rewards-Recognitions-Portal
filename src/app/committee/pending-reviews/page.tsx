@@ -233,8 +233,7 @@ export default function PendingNominationsPage() {
     const query = searchQuery.toLowerCase();
     return PENDING_NOMINATIONS_DATA.filter(
       (nomination) =>
-        nomination.nomineeName.toLowerCase().includes(query) ||
-        nomination.department.toLowerCase().includes(query)
+        nomination.nomineeName.toLowerCase().includes(query)
     );
   }, [searchQuery]);
 

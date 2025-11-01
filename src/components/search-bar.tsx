@@ -6,7 +6,7 @@ interface SearchBarProps {
   onChange?: (value: string) => void
 }
 
-export function SearchBar({ placeholder = "Search by name, department", value, onChange }: SearchBarProps) {
+export function SearchBar({ placeholder = "Search by nominee name", value, onChange }: SearchBarProps) {
   return (
     <div className="relative w-full">
       <svg
