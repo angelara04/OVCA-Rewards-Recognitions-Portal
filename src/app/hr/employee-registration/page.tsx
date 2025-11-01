@@ -4,7 +4,7 @@ import { FolderX, MoreHorizontal } from "lucide-react";
 import TabsLift from "@/components/tabs-lift";
 import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
-import Table, { Column } from "@/components/table/employee-registration-table";
+import Table, { Column } from "@/components/table/hr-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
 import Section from "@/components/section";
@@ -125,7 +125,7 @@ export default function Page() {
       </div>
 
       {/* Content */}
-      <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-b-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
+      <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] border-t-0 rounded-b-xl shadow-sm px-6 py-6 min-h-[75vh] flex flex-col relative content-area -mt-[8px]">
         {/* Search */}
         <SearchBar
           value={searchQuery}
