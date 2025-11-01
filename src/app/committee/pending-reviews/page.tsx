@@ -1,307 +1,174 @@
 "use client";
-
+import React, { useState, useMemo } from "react";
+import { FolderX, MoreHorizontal } from "lucide-react";
 import Button from "@/components/button";
-import { useState, useMemo } from "react";
-import {
-  ScrollableTable,
-  ActionsMenu,
-} from "@/components/table/scrollable-table";
 import { SearchBar } from "@/components/search-bar";
-import { StatusBadge } from "@/components/table/status-badge";
+import Table, { Column } from "@/components/table/committee-table";
+import DropdownMenu from "@/components/dropdown-menu";
+
 import Section from "@/components/section";
 
-// Mock data for Pending Review
-const PENDING_NOMINATIONS_DATA = [
-  {
-    nomineeId: "E01250125",
-    nomineeName: "Maria Del Santos",
-    category: "Administrative Excellence",
-    nominatorId: "E01250125",
-    nominatorName: "Jose Rizal",
-    dateSubmitted: "10/15/2025",
-    department: "Human Resources",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250126",
-    nomineeName: "Juan Dela Cruz",
-    category: "Customer Service",
-    nominatorId: "E01250126",
-    nominatorName: "Maria Santos",
-    dateSubmitted: "10/14/2025",
-    department: "Operations",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250127",
-    nomineeName: "Ana Garcia",
-    category: "Innovation",
-    nominatorId: "E01250127",
-    nominatorName: "Pedro Lopez",
-    dateSubmitted: "10/13/2025",
-    department: "Technology",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250128",
-    nomineeName: "Carlos Reyes",
-    category: "Leadership",
-    nominatorId: "E01250128",
-    nominatorName: "Rosa Flores",
-    dateSubmitted: "10/12/2025",
-    department: "Finance",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250129",
-    nomineeName: "Diana Morales",
-    category: "Administrative Excellence",
-    nominatorId: "E01250129",
-    nominatorName: "Miguel Torres",
-    dateSubmitted: "10/11/2025",
-    department: "Human Resources",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250130",
-    nomineeName: "Eduardo Ramos",
-    category: "Customer Service",
-    nominatorId: "E01250130",
-    nominatorName: "Sofia Mendez",
-    dateSubmitted: "10/10/2025",
-    department: "Operations",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250131",
-    nomineeName: "Francesca Diaz",
-    category: "Innovation",
-    nominatorId: "E01250131",
-    nominatorName: "Antonio Ruiz",
-    dateSubmitted: "10/09/2025",
-    department: "Technology",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250132",
-    nomineeName: "Gabriel Ortiz",
-    category: "Leadership",
-    nominatorId: "E01250132",
-    nominatorName: "Lucia Vargas",
-    dateSubmitted: "10/08/2025",
-    department: "Finance",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250133",
-    nomineeName: "Helena Soto",
-    category: "Administrative Excellence",
-    nominatorId: "E01250133",
-    nominatorName: "Ivan Castillo",
-    dateSubmitted: "10/07/2025",
-    department: "Marketing",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250134",
-    nomineeName: "Ignacio Medina",
-    category: "Customer Service",
-    nominatorId: "E01250134",
-    nominatorName: "Juana Herrera",
-    dateSubmitted: "10/06/2025",
-    department: "Operations",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250135",
-    nomineeName: "Josefina Navarro",
-    category: "Innovation",
-    nominatorId: "E01250135",
-    nominatorName: "Karina Pena",
-    dateSubmitted: "10/05/2025",
-    department: "Technology",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250136",
-    nomineeName: "Leandro Gutierrez",
-    category: "Leadership",
-    nominatorId: "E01250136",
-    nominatorName: "Mariana Acosta",
-    dateSubmitted: "10/04/2025",
-    department: "Finance",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250134",
-    nomineeName: "Ignacio Medina",
-    category: "Customer Service",
-    nominatorId: "E01250134",
-    nominatorName: "Juana Herrera",
-    dateSubmitted: "10/06/2025",
-    department: "Operations",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250135",
-    nomineeName: "Josefina Navarro",
-    category: "Innovation",
-    nominatorId: "E01250135",
-    nominatorName: "Karina Pena",
-    dateSubmitted: "10/05/2025",
-    department: "Technology",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250136",
-    nomineeName: "Leandro Gutierrez",
-    category: "Leadership",
-    nominatorId: "E01250136",
-    nominatorName: "Mariana Acosta",
-    dateSubmitted: "10/04/2025",
-    department: "Finance",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250134",
-    nomineeName: "Ignacio Medina",
-    category: "Customer Service",
-    nominatorId: "E01250134",
-    nominatorName: "Juana Herrera",
-    dateSubmitted: "10/06/2025",
-    department: "Operations",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250135",
-    nomineeName: "Josefina Navarro",
-    category: "Innovation",
-    nominatorId: "E01250135",
-    nominatorName: "Karina Pena",
-    dateSubmitted: "10/05/2025",
-    department: "Technology",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250136",
-    nomineeName: "Leandro Gutierrez",
-    category: "Leadership",
-    nominatorId: "E01250136",
-    nominatorName: "Mariana Acosta",
-    dateSubmitted: "10/04/2025",
-    department: "Finance",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250134",
-    nomineeName: "Ignacio Medina",
-    category: "Customer Service",
-    nominatorId: "E01250134",
-    nominatorName: "Juana Herrera",
-    dateSubmitted: "10/06/2025",
-    department: "Operations",
-    status: "Not Started" as const,
-  },
-  {
-    nomineeId: "E01250135",
-    nomineeName: "Josefina Navarro",
-    category: "Innovation",
-    nominatorId: "E01250135",
-    nominatorName: "Karina Pena",
-    dateSubmitted: "10/05/2025",
-    department: "Technology",
-    status: "In Progress" as const,
-  },
-  {
-    nomineeId: "E01250136",
-    nomineeName: "Leandro Gutierrez",
-    category: "Leadership",
-    nominatorId: "E01250136",
-    nominatorName: "Mariana Acosta",
-    dateSubmitted: "10/04/2025",
-    department: "Finance",
-    status: "Not Started" as const,
-  },
-];
+interface Employee {
+  nomineeid: string;
+  nomineename: string;
+  category: string;
+  nominatorid: string;
+  nominatorname: string;
+  datesubmitted: string;
+  status: string;
+}
 
-export default function PendingNominationsPage() {
+export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+    null
+  );
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
-  const filteredNominations = useMemo(() => {
-    if (!searchQuery.trim()) return PENDING_NOMINATIONS_DATA;
+  // Sample Data
+  const data: Employee[] = Array(25)
+    .fill(null)
+    .map((_, i) => {
+      const status: string = i % 8 === 0 ? "In Progress" : "Not Started";
+      const date = new Date(Date.now() - i * 86400000);
+      const datesubmitted = date.toLocaleDateString("en-PH");
+      return {
+        nomineeid: `E0125${1000 + i}`,
+        nomineename: `Maria Del Santos ${i + 1}`,
+        category: "Administrative Excellence",
+        nominatorid: `E0125${2000 + i}`,
+        nominatorname: `Jose Rizal ${i + 1}`,
+        datesubmitted: datesubmitted,
+        status,
+      };
+    });
 
-    const query = searchQuery.toLowerCase();
-    return PENDING_NOMINATIONS_DATA.filter(
-      (nomination) =>
-        nomination.nomineeName.toLowerCase().includes(query)
+  // Filtered Data (search only)
+  const filteredData = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((d) =>
+      Object.values(d)
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, data]);
 
-  const handleEvaluate = (row: any) => {
-    console.log("Evaluate nomination:", row);
-    // Add evaluation logic here
-  };
+  const hasResults = filteredData.length > 0;
 
-  const columns = [
-    { key: "nomineeId", label: "Nominee ID", width: "w-32" },
-    { key: "nomineeName", label: "Nominee Name", width: "w-40" },
-    { key: "category", label: "Category", width: "w-48" },
-    { key: "nominatorId", label: "Nominator ID", width: "w-32" },
-    { key: "nominatorName", label: "Nominator Name", width: "w-40" },
-    { key: "dateSubmitted", label: "Date Submitted", width: "w-32" },
-    {
-      key: "status",
-      label: "Status",
-      width: "w-32",
-      render: (_: any, row: any) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: "actions",
-      label: "Actions",
-      width: "w-20",
-      render: (_: any, row: any) => (
-        <ActionsMenu onEvaluate={() => handleEvaluate(row)} />
-      ),
-    },
+  const columns: Column[] = [
+    { key: "nomineeid", label: "Nominee ID", },
+    { key: "nomineename", label: "Nominee Name" },
+    { key: "category", label: "Category" },
+    { key: "nominatorid", label: "Nominator ID" },
+    { key: "nominatorname", label: "Nominator Name" },
+    { key: "datesubmitted", label: "Date Submitted" },
+    { key: "status", label: "Status" },
   ];
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       {/* Header */}
-      <div className="flex flex-row justify-between items-center w-full my-2">
-        <span className="font-bold text-3xl">Pending Review</span>
-        <Button size="sm" variant="secondary">
-          <div className="px-5 py-1">Back to Dashboard</div>
+      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+        <div>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Pending Review
+          </h1>
+          <p className="text-base text-[var(--dark-grey)]">
+            Nominations awaiting committee review and scoring
+          </p>
+        </div>
+        <Button variant="secondary" size="md">
+          Back to Dashboard
         </Button>
       </div>
 
-      {/* Description */}
-      <span className="text-lg w-full">
-        Nominations awaiting committee review and scoring.
-      </span>
-
-      <div className="w-full bg-white rounded-lg border border-gray-200 p-8 overflow-hidden mt-6">
+      {/* Content */}
+      <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Nominations for Review
         </h2>
+        {/* Search */}
+        <SearchBar
+          value={searchQuery}
+          onChange={(val: string) => setSearchQuery(val)}
+          placeholder="Search by nominee name"
+        />
 
-        <div className="mb-6">
-          <SearchBar
-            placeholder="Search by nominee name"
-            value={searchQuery}
-            onChange={setSearchQuery}
-          />
+        {/* Table Container */}
+        <div className="mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
+          {hasResults ? (
+            <div className="w-full overflow-auto">
+              <Table
+                columns={columns}
+                data={filteredData}
+                renderActions={(_row, i) => {
+                  const employee = filteredData[i];
+                  // allow interaction for both "In Progress" and "Not Started"
+                  const isInteractive =
+                    employee.status === "In Progress" ||
+                    employee.status === "Not Started";
+                  const iconColor = isInteractive
+                    ? "text-[var(--maroon)]"
+                    : "text-[var(--outline-grey)]";
+                  const cursor = isInteractive ? "cursor-pointer" : "cursor-not-allowed";
+
+                  return (
+                    <button
+                      // enable for both statuses
+                      disabled={!isInteractive}
+                      className={`${iconColor} ${cursor}`}
+                      onClick={(e) => {
+                        if (!isInteractive) return;
+                        const buttonRect = (
+                          e.currentTarget as HTMLElement
+                        ).getBoundingClientRect();
+                        const containerRect = document
+                          .querySelector(".content-area")!
+                          .getBoundingClientRect();
+                        setDropdownPosition({
+                          top: buttonRect.bottom - containerRect.top + 4,
+                          left: buttonRect.left - containerRect.left - 90,
+                        });
+                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                      }}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
+              <FolderX size={100} className="mb-4 opacity-70" />
+              <p className="font-bold text-3xl">No Results Found</p>
+            </div>
+          )}
         </div>
 
-        <div className="w-full overflow-hidden">
-          <ScrollableTable
-            columns={columns}
-            data={filteredNominations}
-            onActionClick={handleEvaluate}
-            headerBgColor="bg-[#8B1538]"
-            headerTextColor="text-white"
+        {/* Dropdown (single Evaluate action) */}
+        {typeof window !== "undefined" && openDropdownIndex !== null && dropdownPosition && (
+          <DropdownMenu
+            position={dropdownPosition}
+            onCloseAction={() => setOpenDropdownIndex(null)}
+            items={[
+              {
+                label: "Evaluate",
+                color: "text-[var(--maroon)]",
+                onClickAction: () => {
+                  // replace with navigation/handler to evaluation page
+                  console.log("Evaluate", filteredData[openDropdownIndex!]);
+                  setOpenDropdownIndex(null);
+                },
+              },
+            ]}
           />
-        </div>
+        )}
       </div>
     </Section>
   );
