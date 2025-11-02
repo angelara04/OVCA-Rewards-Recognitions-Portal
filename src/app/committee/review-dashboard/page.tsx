@@ -20,8 +20,13 @@ interface Nominee {
 
 export default function ReviewDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+    null
+  );
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
 
   const data: Nominee[] = useMemo(
     () =>
@@ -33,8 +38,17 @@ export default function ReviewDashboardPage() {
           category: "Administrative Excellence",
           nominatorid: `E012501125`,
           nominatorname: "Jose Rizal",
-          datesubmitted: `2025-10-${(12 - (i % 10)).toString().padStart(2, "0")}`,
-          status: i % 4 === 0 ? "In Progress" : i % 4 === 1 ? "Complete" : i % 4 === 2 ? "Not Started" : "Complete",
+          datesubmitted: `2025-10-${(12 - (i % 10))
+            .toString()
+            .padStart(2, "0")}`,
+          status:
+            i % 4 === 0
+              ? "In Progress"
+              : i % 4 === 1
+              ? "Complete"
+              : i % 4 === 2
+              ? "Not Started"
+              : "Complete",
         })),
     []
   );
@@ -43,10 +57,7 @@ export default function ReviewDashboardPage() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return data;
     return data.filter((d) =>
-      Object.values(d)
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
+      Object.values(d).join(" ").toLowerCase().includes(q)
     );
   }, [searchQuery, data]);
 
@@ -70,10 +81,17 @@ export default function ReviewDashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6 w-full max-w-7xl">
         <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">Committee Review Dashboard</h1>
-          <p className="text-base text-[var(--dark-grey)]">Welcome to the committee review dashboard. Here you can view and score nominations</p>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Committee Review Dashboard
+          </h1>
+          <p className="text-base text-[var(--dark-grey)]">
+            Welcome to the committee review dashboard. Here you can view and
+            score nominations
+          </p>
         </div>
-        <Button variant="secondary" size="md">Back to Dashboard</Button>
+        <Button variant="secondary" size="sm">
+          Back to Dashboard
+        </Button>
       </div>
 
       {/* Cards */}
@@ -87,7 +105,11 @@ export default function ReviewDashboardPage() {
       <div className="w-full max-w-7xl  min-h-[65vh] flex flex-col relative content-area">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">Nominations</h2>
 
-        <SearchBar value={searchQuery} onChange={(v: string) => setSearchQuery(v)} placeholder="Search by name, department, or email" />
+        <SearchBar
+          value={searchQuery}
+          onChange={(v: string) => setSearchQuery(v)}
+          placeholder="Search by name, department, or email"
+        />
 
         <div className="mt-4 flex-1 w-full relative">
           {hasResults ? (
@@ -101,13 +123,19 @@ export default function ReviewDashboardPage() {
                   <div className="h-full flex items-center justify-end pl-3">
                     <button
                       onClick={(e) => {
-                        const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const containerRect = document.querySelector('.content-area')!.getBoundingClientRect();
+                        const buttonRect = (
+                          e.currentTarget as HTMLElement
+                        ).getBoundingClientRect();
+                        const containerRect = document
+                          .querySelector(".content-area")!
+                          .getBoundingClientRect();
                         setDropdownPosition({
                           top: buttonRect.bottom - containerRect.top + 6,
                           left: buttonRect.left - containerRect.left - 90,
                         });
-                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                        setOpenDropdownIndex(
+                          openDropdownIndex === i ? null : i
+                        );
                       }}
                       className="text-[var(--maroon)] hover:text-[var(--maroon)]"
                       aria-label="Actions"
@@ -127,23 +155,25 @@ export default function ReviewDashboardPage() {
         </div>
 
         {/* Dropdown */}
-        {typeof window !== "undefined" && openDropdownIndex !== null && dropdownPosition && (
-          <DropdownMenu
-            position={dropdownPosition}
-            onCloseAction={() => setOpenDropdownIndex(null)}
-            items={[
-              {
-                label: "Evaluate",
-                // use black text (per your spec)
-                color: "text-black",
-                onClickAction: () => {
-                  console.log("Evaluate", filteredData[openDropdownIndex!]);
-                  setOpenDropdownIndex(null);
+        {typeof window !== "undefined" &&
+          openDropdownIndex !== null &&
+          dropdownPosition && (
+            <DropdownMenu
+              position={dropdownPosition}
+              onCloseAction={() => setOpenDropdownIndex(null)}
+              items={[
+                {
+                  label: "Evaluate",
+                  // use black text (per your spec)
+                  color: "text-black",
+                  onClickAction: () => {
+                    console.log("Evaluate", filteredData[openDropdownIndex!]);
+                    setOpenDropdownIndex(null);
+                  },
                 },
-              },
-            ]}
-          />
-        )}
+              ]}
+            />
+          )}
       </div>
     </Section>
   );
