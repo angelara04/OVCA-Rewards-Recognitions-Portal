@@ -54,10 +54,7 @@ export default function Page() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return data;
     return data.filter((d) =>
-      Object.values(d)
-        .join(" ")
-        .toLowerCase()
-        .includes(q)
+      Object.values(d).join(" ").toLowerCase().includes(q)
     );
   }, [searchQuery, data]);
 
@@ -86,7 +83,7 @@ export default function Page() {
             Nominations that have been scored by the committee
           </p>
         </div>
-        <Button variant="secondary" size="md">
+        <Button variant="secondary" size="sm">
           Back to Dashboard
         </Button>
       </div>
@@ -119,7 +116,9 @@ export default function Page() {
                   const iconColor = isInteractive
                     ? "text-[var(--maroon)]"
                     : "text-[var(--outline-grey)]";
-                  const cursor = isInteractive ? "cursor-pointer" : "cursor-not-allowed";
+                  const cursor = isInteractive
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed";
 
                   return (
                     <button
@@ -138,7 +137,9 @@ export default function Page() {
                           top: buttonRect.bottom - containerRect.top + 4,
                           left: buttonRect.left - containerRect.left - 90,
                         });
-                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                        setOpenDropdownIndex(
+                          openDropdownIndex === i ? null : i
+                        );
                       }}
                     >
                       <MoreHorizontal size={18} />
@@ -156,23 +157,25 @@ export default function Page() {
         </div>
 
         {/* Dropdown (single Evaluate action) */}
-        {typeof window !== "undefined" && openDropdownIndex !== null && dropdownPosition && (
-          <DropdownMenu
-            position={dropdownPosition}
-            onCloseAction={() => setOpenDropdownIndex(null)}
-            items={[
-              {
-                label: "Evaluate",
-                color: "text-[var(--maroon)]",
-                onClickAction: () => {
-                  // replace with navigation/handler to evaluation page
-                  console.log("Evaluate", filteredData[openDropdownIndex!]);
-                  setOpenDropdownIndex(null);
+        {typeof window !== "undefined" &&
+          openDropdownIndex !== null &&
+          dropdownPosition && (
+            <DropdownMenu
+              position={dropdownPosition}
+              onCloseAction={() => setOpenDropdownIndex(null)}
+              items={[
+                {
+                  label: "Evaluate",
+                  color: "text-black",
+                  onClickAction: () => {
+                    // replace with navigation/handler to evaluation page
+                    console.log("Evaluate", filteredData[openDropdownIndex!]);
+                    setOpenDropdownIndex(null);
+                  },
                 },
-              },
-            ]}
-          />
-        )}
+              ]}
+            />
+          )}
       </div>
     </Section>
   );
