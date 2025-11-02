@@ -1,5 +1,5 @@
 interface StatusBadgeProps {
-  status: "In Progress" | "Complete" | "Not Started" | "Pending" | "Approved" | "Rejected";
+  status: "In Progress" | "Complete" | "Not Started" | "Pending" | "Approved" | "Rejected" | "Qualified" | "Disqualified";
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
@@ -10,10 +10,12 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     Pending: "bg-[var(--light-yellow)] text-yellow-800",
     Approved: "bg-[var(--light-green)] text-[var(--forest-green)]",
     Rejected: "bg-[var(--light-red)] text-[var(--maroon)]",
+    Qualified: "bg-[var(--light-green)] text-[var(--forest-green)]",
+    Disqualified: "bg-[var(--light-red)] text-[var(--maroon)]",
   }
 
 
   return (
-    <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusStyles[status]}`}>{status}</span>
+    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusStyles[status]}`}>{status}</span>
   );
 }
