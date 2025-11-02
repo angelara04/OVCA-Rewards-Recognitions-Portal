@@ -1,12 +1,11 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { FolderX, MoreHorizontal } from "lucide-react";
-import TabsLift from "@/components/tabs-lift"; // ✅ import TabKey
+import TabsLift from "@/components/tabs-lift"; 
 import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/hr-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
-import ConfirmModal from "@/components/confirm-modal";
 import Section from "@/components/section";
 
 interface Employee {
@@ -22,26 +21,25 @@ interface Employee {
 type TabKey = "all" | "committee" | "nominator";
 
 export default function CommitteeManagementPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("all"); // use imported TabKey
+  const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
-  const [modalData, setModalData] = useState<{ name: string } | null>(null);
-
-  // Sample data
-  const data = useMemo(() => Array(20).fill(null).map((_, i) => {
-  const role = i % 2 === 0 ? "Committee" : "Nominator";
-  const date = new Date(2025, 10, 1 - i); // static date
-  return {
-    id: `E${1000 + i}`,
-    name: `Employee ${i + 1}`,
-    role,
-    department: "Office of the Vice Chancellor",
-    email: `employee${i + 1}@up.edu.ph`,
-    dateRegistered: date.toLocaleDateString("en-PH"),
-    isCommittee: role === "Committee",
-  }
-}), []);
+  const [data, setData] = useState<Employee[]>(() =>
+    Array(20).fill(null).map((_, i) => {
+      const role = i % 2 === 0 ? "Committee" : "Nominator";
+      const date = new Date(2025, 10, 1 - i);
+      return {
+        id: `E${1000 + i}`,
+        name: `Employee ${i + 1}`,
+        role,
+        department: "Office of the Vice Chancellor",
+        email: `employee${i + 1}@up.edu.ph`,
+        dateRegistered: date.toLocaleDateString("en-PH"),
+        isCommittee: role === "Committee",
+      };
+    })
+  );
 
   // Tabs
   const tabs: { key: TabKey; label: string; count: number }[] = [
@@ -75,6 +73,22 @@ export default function CommitteeManagementPage() {
     { key: "email", label: "Email" },
     { key: "dateRegistered", label: "Date Registered" },
   ];
+
+  // Handle Add/Remove Committee
+  const handleCommitteeAction = (index: number) => {
+    const employee = filteredData[index];
+    const updatedData = data.map(d =>
+      d.id === employee.id
+        ? {
+            ...d,
+            role: d.isCommittee ? "Nominator" : "Committee",
+            isCommittee: !d.isCommittee,
+          }
+        : d
+    );
+    setData(updatedData);
+    setOpenDropdownIndex(null); // close dropdown
+  };
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
@@ -111,31 +125,22 @@ export default function CommitteeManagementPage() {
             <Table
               columns={columns}
               data={filteredData}
-              renderActions={(row, i) => {
-                const employee = filteredData[i];
-                const isCommittee = employee.isCommittee;
-                const iconColor = isCommittee ? "text-[var(--outline-grey)]" : "text-[var(--maroon)]";
-                const cursor = isCommittee ? "cursor-not-allowed" : "cursor-pointer";
-
-                return (
-                  <button
-                    disabled={isCommittee}
-                    className={`${iconColor} ${cursor}`}
-                    onClick={(e) => {
-                      if (isCommittee) return;
-                      const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
-                      setDropdownPosition({
-                        top: buttonRect.bottom - containerRect.top + 4,
-                        left: buttonRect.left - containerRect.left - 90,
-                      });
-                      setOpenDropdownIndex(openDropdownIndex === i ? null : i);
-                    }}
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                );
-              }}
+              renderActions={(row, i) => (
+                <button
+                  className="text-[var(--maroon)] cursor-pointer"
+                  onClick={(e) => {
+                    const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                    setDropdownPosition({
+                      top: buttonRect.bottom - containerRect.top + 4,
+                      left: buttonRect.left - containerRect.left - 90,
+                    });
+                    setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                  }}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+              )}
             />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
@@ -151,24 +156,17 @@ export default function CommitteeManagementPage() {
             position={dropdownPosition}
             onCloseAction={() => setOpenDropdownIndex(null)}
             items={[
-              {
+              filteredData[openDropdownIndex].role === "Nominator" && {
                 label: "Add as Committee",
-                color: "text-[var(--black]",
-                onClickAction: () => setModalData({ name: filteredData[openDropdownIndex!].name }),
+                color: "text-[var(--black)]",
+                onClickAction: () => handleCommitteeAction(openDropdownIndex),
               },
-            ]}
-          />
-        )}
-
-        {/* Confirm Modal */}
-        {modalData && (
-          <ConfirmModal
-            action="approve"
-            onCancelAction={() => setModalData(null)}
-            onConfirmAction={() => {
-              alert(`Added ${modalData.name} as Committee`);
-              setModalData(null);
-            }}
+              filteredData[openDropdownIndex].role === "Committee" && {
+                label: "Remove from Committee",
+                color: "text-[var(--black)]",
+                onClickAction: () => handleCommitteeAction(openDropdownIndex),
+              },
+            ].filter(Boolean) as { label: string; color: string; onClickAction: () => void }[]}
           />
         )}
       </div>
