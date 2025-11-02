@@ -98,7 +98,7 @@ export default function ReviewDashboardPage() {
               renderActions={(_row, i) => {
                 // left border that stays with sticky actions column
                 return (
-                  <div className="h-full flex items-center justify-end border-l border-[var(--outline-grey)] pl-3">
+                  <div className="h-full flex items-center justify-end pl-3">
                     <button
                       onClick={(e) => {
                         const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
