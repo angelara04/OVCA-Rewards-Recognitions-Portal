@@ -21,7 +21,7 @@ export default function Table<T>({
   renderActions,
 }: TableProps<T>) {
   return (
-    <div className="overflow-auto border border-[var(--outline-grey)] rounded-md flex-1 h-[60vh]">
+    <div className="overflow-auto border border-[var(--outline-grey)] rounded-md flex-1 h-[60vh] relative">
       <table className="w-full text-xs border-collapse min-w-[1400px]">
         {/* Header */}
         <thead>
@@ -31,7 +31,6 @@ export default function Table<T>({
                 key={col.key}
                 className={clsx(
                   "py-3 px-4 font-medium text-left sticky top-0 bg-[var(--maroon)] z-20 text-white",
-                  // no borders on header
                   "border-none"
                 )}
               >
@@ -39,10 +38,13 @@ export default function Table<T>({
               </th>
             ))}
             {renderActions && (
-              <th className="py-3 px-4 font-medium text-right sticky top-0 right-0 bg-[var(--maroon)] z-30 text-white border-none">
-                Actions
-              </th>
-            )}
+                <th
+                  className="sticky top-0 right-0 bg-[var(--maroon)] z-40 text-white px-4 py-3 text-center"
+                >
+                  Actions
+                </th>
+              )}
+
           </tr>
         </thead>
 
@@ -71,7 +73,7 @@ export default function Table<T>({
                       key={col.key}
                       className={clsx(
                         "py-3 px-4",
-                        !isLast && "border-r border-[var(--outline-grey)]" // vertical line
+                        !isLast && "border-r border-[var(--outline-grey)]"
                       )}
                     >
                       <Role role={normalizedKey} />
@@ -139,12 +141,14 @@ export default function Table<T>({
                 );
               })}
 
-              {/* Actions column */}
-              {renderActions && (
-                <td className="py-3 px-4 text-right sticky right-0 bg-white z-20">
+            {renderActions && (
+              <td className=" sticky right-0 bg-white z-30 w-[100px] border-l border-[var(--outline-grey)]">
+                <div className="flex items-center justify-center h-full">
                   {renderActions(row, i)}
-                </td>
-              )}
+                </div>
+              </td>
+            )}
+
             </tr>
           ))}
         </tbody>

@@ -6,7 +6,7 @@ import Button from "@/components/button";
 import ProgressCard from "@/components/progressCard";
 import Section from "@/components/section";
 import { MoveRight, MoreHorizontal, FolderX } from "lucide-react";
-import Table from "@/components/table/employee-registration-table";
+import Table from "@/components/table/hr-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
 import SearchBar from "@/components/search-bar";
