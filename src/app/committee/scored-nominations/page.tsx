@@ -83,8 +83,8 @@ export default function Page() {
             Nominations that have been scored by the committee
           </p>
         </div>
-        <Button variant="secondary" size="sm">
-          Back to Dashboard
+        <Button size="sm" variant="secondary">
+          <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>
 

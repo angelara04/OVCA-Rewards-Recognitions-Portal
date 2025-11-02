@@ -110,8 +110,8 @@ export default function Page() {
             Review and verify employee registrations for nomination eligibility
           </p>
         </div>
-        <Button variant="secondary" size="md">
-          Back to Dashboard
+        <Button size="sm" variant="secondary">
+          <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>
 

@@ -79,8 +79,8 @@ export default function Page() {
             Nominations awaiting committee review and scoring
           </p>
         </div>
-        <Button variant="secondary" size="sm">
-          Back to Dashboard
+        <Button size="sm" variant="secondary">
+          <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>
 

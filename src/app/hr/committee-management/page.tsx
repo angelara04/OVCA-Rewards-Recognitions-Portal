@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { FolderX, MoreHorizontal } from "lucide-react";
-import TabsLift from "@/components/tabs-lift"; 
+import TabsLift from "@/components/tabs-lift";
 import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/hr-registration-table";
@@ -23,39 +23,56 @@ type TabKey = "all" | "committee" | "nominator";
 export default function CommitteeManagementPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+    null
+  );
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [data, setData] = useState<Employee[]>(() =>
-    Array(20).fill(null).map((_, i) => {
-      const role = i % 2 === 0 ? "Committee" : "Nominator";
-      const date = new Date(2025, 10, 1 - i);
-      return {
-        id: `E${1000 + i}`,
-        name: `Employee ${i + 1}`,
-        role,
-        department: "Office of the Vice Chancellor",
-        email: `employee${i + 1}@up.edu.ph`,
-        dateRegistered: date.toLocaleDateString("en-PH"),
-        isCommittee: role === "Committee",
-      };
-    })
+    Array(20)
+      .fill(null)
+      .map((_, i) => {
+        const role = i % 2 === 0 ? "Committee" : "Nominator";
+        const date = new Date(2025, 10, 1 - i);
+        return {
+          id: `E${1000 + i}`,
+          name: `Employee ${i + 1}`,
+          role,
+          department: "Office of the Vice Chancellor",
+          email: `employee${i + 1}@up.edu.ph`,
+          dateRegistered: date.toLocaleDateString("en-PH"),
+          isCommittee: role === "Committee",
+        };
+      })
   );
 
   // Tabs
   const tabs: { key: TabKey; label: string; count: number }[] = [
     { key: "all", label: "All", count: data.length },
-    { key: "committee", label: "Committee", count: data.filter(d => d.role === "Committee").length },
-    { key: "nominator", label: "Nominator", count: data.filter(d => d.role === "Nominator").length },
+    {
+      key: "committee",
+      label: "Committee",
+      count: data.filter((d) => d.role === "Committee").length,
+    },
+    {
+      key: "nominator",
+      label: "Nominator",
+      count: data.filter((d) => d.role === "Nominator").length,
+    },
   ];
 
   // Filtered data
   const filteredData = useMemo(() => {
     let base = data;
-    if (activeTab === "committee") base = data.filter(d => d.role === "Committee");
-    if (activeTab === "nominator") base = data.filter(d => d.role === "Nominator");
+    if (activeTab === "committee")
+      base = data.filter((d) => d.role === "Committee");
+    if (activeTab === "nominator")
+      base = data.filter((d) => d.role === "Nominator");
     if (searchQuery.trim()) {
-      base = base.filter(d =>
-        Object.values(d).some(val =>
+      base = base.filter((d) =>
+        Object.values(d).some((val) =>
           String(val).toLowerCase().includes(searchQuery.toLowerCase())
         )
       );
@@ -77,7 +94,7 @@ export default function CommitteeManagementPage() {
   // Handle Add/Remove Committee
   const handleCommitteeAction = (index: number) => {
     const employee = filteredData[index];
-    const updatedData = data.map(d =>
+    const updatedData = data.map((d) =>
       d.id === employee.id
         ? {
             ...d,
@@ -95,12 +112,17 @@ export default function CommitteeManagementPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">Committee Management</h1>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Committee Management
+          </h1>
           <p className="text-base text-[var(--dark-grey)]">
-            Add or remove committee members who will review and score nominations.
+            Add or remove committee members who will review and score
+            nominations.
           </p>
         </div>
-        <Button variant="secondary" size="md">Back to Dashboard</Button>
+        <Button size="sm" variant="secondary">
+          <div className="px-5 py-1">Back to Dashboard</div>
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -129,8 +151,12 @@ export default function CommitteeManagementPage() {
                 <button
                   className="text-[var(--maroon)] cursor-pointer"
                   onClick={(e) => {
-                    const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                    const buttonRect = (
+                      e.currentTarget as HTMLElement
+                    ).getBoundingClientRect();
+                    const containerRect = document
+                      .querySelector(".content-area")!
+                      .getBoundingClientRect();
                     setDropdownPosition({
                       top: buttonRect.bottom - containerRect.top + 4,
                       left: buttonRect.left - containerRect.left - 90,
@@ -155,18 +181,24 @@ export default function CommitteeManagementPage() {
           <DropdownMenu
             position={dropdownPosition}
             onCloseAction={() => setOpenDropdownIndex(null)}
-            items={[
-              filteredData[openDropdownIndex].role === "Nominator" && {
-                label: "Add as Committee",
-                color: "text-[var(--black)]",
-                onClickAction: () => handleCommitteeAction(openDropdownIndex),
-              },
-              filteredData[openDropdownIndex].role === "Committee" && {
-                label: "Remove from Committee",
-                color: "text-[var(--black)]",
-                onClickAction: () => handleCommitteeAction(openDropdownIndex),
-              },
-            ].filter(Boolean) as { label: string; color: string; onClickAction: () => void }[]}
+            items={
+              [
+                filteredData[openDropdownIndex].role === "Nominator" && {
+                  label: "Add as Committee",
+                  color: "text-[var(--black)]",
+                  onClickAction: () => handleCommitteeAction(openDropdownIndex),
+                },
+                filteredData[openDropdownIndex].role === "Committee" && {
+                  label: "Remove from Committee",
+                  color: "text-[var(--black)]",
+                  onClickAction: () => handleCommitteeAction(openDropdownIndex),
+                },
+              ].filter(Boolean) as {
+                label: string;
+                color: string;
+                onClickAction: () => void;
+              }[]
+            }
           />
         )}
       </div>

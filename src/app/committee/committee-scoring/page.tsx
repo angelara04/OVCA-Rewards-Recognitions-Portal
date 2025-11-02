@@ -19,18 +19,21 @@ export default function CommitteeScoring({ children }: CommitteeScoringProps) {
       height="min-h-screen"
       alignment="items-center p-10  "
     >
-      {/* Title */}
-      <div className="flex flex-row justify-between items-center w-full my-2">
-        <span className="font-bold text-3xl">Committee Scoring</span>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+        <div>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Committee Scoring
+          </h1>
+          <p className="text-base text-[var(--dark-grey)]">
+            Welcome to your nomination dashboard. Here you can create new
+            nominations and track existing ones.
+          </p>
+        </div>
         <Button size="sm" variant="secondary">
           <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>
-
-      <span className="text-lg w-full mb-5">
-        Welcome to your nomination dashboard. Here you can create new
-        nominations and track existing ones.
-      </span>
 
       {/* Dropdown */}
       <Section width="w-full" height="h-auto" alignment="p-10 mb-4">

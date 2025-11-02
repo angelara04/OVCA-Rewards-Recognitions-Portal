@@ -9,7 +9,6 @@ import { MoveRight, MoreHorizontal, FolderX } from "lucide-react";
 import Table from "@/components/table/hr-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
-import SearchBar from "@/components/search-bar";
 
 interface Employee {
   id: string;
@@ -103,21 +102,21 @@ export default function Page() {
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       <div className="content-area w-full flex flex-col gap-2">
-        {/* Title */}
-        <div className="flex flex-row justify-between items-center w-full my-2">
-          <span className="font-bold text-3xl">HR Dashboard</span>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setIsModalOpen(true)}
-          >
+        {/* Header */}
+        <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+          <div>
+            <h1 className="text-[28px] font-bold text-[var(--black)]">
+              HR Dashboard
+            </h1>
+            <p className="text-base text-[var(--dark-grey)]">
+              Manage the Gawad Tsanselor system and oversee all nomination
+              processes
+            </p>
+          </div>
+          <Button size="sm" variant="primary">
             <div className="px-5 py-1">Review Registrations</div>
           </Button>
         </div>
-
-        <span className="text-lg w-full mb-5">
-          Manage the Gawad Tsanselor system and oversee all nomination processes
-        </span>
 
         {/* Cards section */}
         <div className="w-full flex flex-col gap-2 md:flex-row mb-5">
