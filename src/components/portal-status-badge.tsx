@@ -1,4 +1,9 @@
-import React from 'react';
+import React from "react";
+
+//IMPORTANT MODIFICATION FOR FUNCTIONALITIES
+//THIS CODE NEEDS TO BE MODIFIED
+// Need to modify the Logic, Published if there is no submissions yet it can allow user to edit the Dates
+// However if there are submissions already it should be Open and cannot be edited
 
 interface PortalStatusBadgeProps {
   startDate?: string | null;
@@ -10,7 +15,7 @@ interface PortalStatusBadgeProps {
 const PortalStatusBadge: React.FC<PortalStatusBadgeProps> = ({
   startDate,
   endDate,
-  unscheduledLabel = 'UNSCHEDULED',
+  unscheduledLabel = "UNSCHEDULED",
 }) => {
   const today = new Date();
   const start = startDate ? new Date(startDate) : null;
@@ -19,19 +24,19 @@ const PortalStatusBadge: React.FC<PortalStatusBadgeProps> = ({
   /* Default to UN SCHEDULED when no dates provided */
   let label = unscheduledLabel;
   // text color class (applies to text and dot via bg-current)
-  let textColorClass = 'text-[var(--dark-yellow)]';
+  let textColorClass = "text-[var(--dark-yellow)]";
   // border color class
-  let borderColorClass = 'border-[var(--dark-yellow)]';
+  let borderColorClass = "border-[var(--dark-yellow)]";
 
   if (start && end) {
     if (today < start) {
-      label = 'PUBLISHED';
-      textColorClass = 'text-[var(--dark-purple)]';
-      borderColorClass = 'border-[var(--dark-purple)]';
+      label = "PUBLISHED";
+      textColorClass = "text-[var(--dark-purple)]";
+      borderColorClass = "border-[var(--dark-purple)]";
     } else if (today >= start && today <= end) {
-      label = 'OPEN';
-      textColorClass = 'text-[var(--forest-green)]';
-      borderColorClass = 'border-[var(--forest-green)]';
+      label = "OPEN";
+      textColorClass = "text-[var(--forest-green)]";
+      borderColorClass = "border-[var(--forest-green)]";
     }
   }
 
