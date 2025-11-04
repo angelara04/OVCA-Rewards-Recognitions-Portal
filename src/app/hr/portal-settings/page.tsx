@@ -47,7 +47,13 @@ export default function Page() {
           </div>
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             {/* Modify the PortalStatusBadge functionalities see comments in the file */}
-            <PortalStatusBadge startDate="" endDate="" />
+            <PortalStatusBadge
+              variant="period"
+              // format: YYYY-MM-DD
+              startDate="2025-11-01"
+              endDate="2025-11-10"
+              hasSubmissions={true}
+            />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Allow employees to submit nominations
@@ -96,7 +102,12 @@ export default function Page() {
           </div>
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             {/* Modify the PortalStatusBadge functionalities see comments in the file */}
-            <PortalStatusBadge startDate="" endDate="" />
+            <PortalStatusBadge
+              variant="period"
+              startDate="2025-11-01"
+              endDate="2025-11-10"
+              hasSubmissions={true}
+            />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Committee members can score nominations
