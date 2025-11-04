@@ -13,7 +13,6 @@ interface Nomination {
   category: string
   committeescore: string
   averagescore: string | number
-  remarks: string
   status: "NOT STARTED" | "ON GOING" | "COMPLETED"
   submittedCount?: number
   mixedScores?: (number | "N/A")[]
@@ -41,7 +40,6 @@ export default function Page() {
           category: "Administrative Excellence",
           committeescore: "",
           averagescore: "",
-          remarks: "",
           status: "NOT STARTED" as const,
           submittedCount: 0,
           mixedScores: ["N/A", "N/A", "N/A"] as (number | "N/A")[],
@@ -65,7 +63,6 @@ export default function Page() {
       //       category: "Administrative Excellence",
       //       committeescore: "", // will render mixedScores visually
       //       averagescore: "",
-      //       remarks: "null",
       //       status: "ON GOING" as const,
       //       submittedCount: submitted,
       //       mixedScores: mixed,
@@ -85,7 +82,6 @@ export default function Page() {
       //       category: "Administrative Excellence",
       //       committeescore: scores.join(", "),
       //       averagescore: avg, // string like "87.67"
-      //       remarks: `Remark for Maria Del Santos ${idx + 1}`,
       //       status: "COMPLETED" as const,
       //       submittedCount: totalMembersPerNominee, // completed => full submissions
       //       mixedScores: scores,
@@ -197,7 +193,6 @@ export default function Page() {
         return value
       },
     },
-    { key: "remarks", label: "Remarks", width: 180 },
   ]
 
   const handleDownload = (row: Nomination, index: number) => {
