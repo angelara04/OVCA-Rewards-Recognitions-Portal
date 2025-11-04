@@ -29,25 +29,33 @@ export default function DashboardPage() {
   ];
 
   return (
-    <Section width="w-full" height="h-auto" alignment="items-center p-10">
-      <div className="flex flex-row justify-between items-center w-full my-2">
-        <span className="font-bold text-3xl">Nominator Dashboard</span>
+    <Section
+      width="w-full"
+      height="min-h-screen"
+      alignment="items-center p-10 "
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+        <div>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Nominator Dashboard
+          </h1>
+          <p className="text-base text-[var(--dark-grey)]">
+            Welcome to your nomination dashboard. Here you can create new
+            nominations and track existing ones.
+          </p>
+        </div>
         <Button size="sm" variant="primary">
           <div className="px-5 py-1">New Nomination</div>
         </Button>
       </div>
 
-      <span className="text-lg w-full">
-        Welcome to your nomination dashboard. Here you can create new
-        nominations and track existing ones.
-      </span>
-
       {/* Cards section */}
-      <div className="w-full flex flex-col gap-2 sm:flex-row">
-        <Card description="Draft" number={10} />
-        <Card description="Submitted" number={5} />
+      <div className="w-full flex flex-col gap-2 sm:flex-row mb-5">
+        <Card description="Draft Nominations" number={10} />
+        <Card description="Submitted Entries" number={5} />
         <Card description="Under Review" number={20} />
-        <Card description="Finalized" number={20} />
+        <Card description="Finalized Awards" number={20} />
       </div>
 
       {/* Table section */}

@@ -15,7 +15,7 @@ export default function Sidebar({ role }: SidebarProps) {
   let tabs: string[] = [];
 
   switch (role) {
-    case "hr":
+    case "committee":
       tabs = [
         "Review Dashboard",
         "Pending Reviews",
@@ -23,12 +23,13 @@ export default function Sidebar({ role }: SidebarProps) {
         "Committee Scoring",
       ];
       break;
-    case "committee":
+    case "hr":
       tabs = [
-        "Dashboard",
-        "Committee Review",
-        "HR Reports",
-        "Final Evaluation",
+        "HR Dashboard",
+        "Employee Registration",
+        "Committee Management",
+        "Portal Settings",
+        "Nomination Report",
       ];
       break;
     case "nominator":
@@ -37,7 +38,11 @@ export default function Sidebar({ role }: SidebarProps) {
   }
 
   return (
-    <Section height="h-full" width="max-w-[20%] w-full min-w-[150px]">
+    <Section
+      height="h-full"
+      width="max-w-[20%] w-full min-w-[300px] flex min-h-screen sticky top-0"
+      alignment=""
+    >
       <div className=" w-full h-full">
         <Tabs info={tabs} role={role} />
       </div>

@@ -1,26 +1,28 @@
 import React from "react";
 
 export default function Role({ role }: { role: string }) {
+  const key = role?.toLowerCase?.() ?? "";
+
   const roleStyle =
-    role === "hr"
+    key === "hr"
       ? "bg-[var(--maroon)] text-[var(--white)] "
-      : role === "committee"
-      ? "bg-[var(--light-green)] text-[var(--dark-green)]"
-      : role === "nominator"
+      : key === "committee"
+      ? "bg-[var(--light-green)] text-[var(--forest-green)]"
+      : key === "nominator"
       ? "bg-[var(--light-blue)] text-[var(--dark-blue)]"
-      : "";
+      : "bg-[var(--category-grey)] text-[var(--dark-grey)]";
 
   const displayRole =
-    role === "hr"
+    key === "hr"
       ? "HR SuperAdmin"
-      : role === "committee"
+      : key === "committee"
       ? "Committee"
-      : role === "nominator"
+      : key === "nominator"
       ? "Nominator"
-      : "";
+      : role;
 
   return (
-    <div className={`px-3 py-1 rounded-full text-sm font-medium ${roleStyle}`}>
+    <div className={`px-3 py-1 rounded-full text-xs font-medium  ${roleStyle}`}>
       {displayRole}
     </div>
   );

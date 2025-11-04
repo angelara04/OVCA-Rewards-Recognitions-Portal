@@ -21,7 +21,7 @@ export default function NominatorLayout({
       <Greeting Fname={Fname} role={role} />
 
       {/* Sidebar + Main content (same flex + p-5 + gap-2 as before) */}
-      <div className="flex flex-row justify-center items-center w-full h-full gap-2 p-5">
+      <div className="flex flex-row w-full h-full gap-2 p-5">
         <Sidebar role={role} />
         <div className="w-full h-full">{children}</div>
       </div>
