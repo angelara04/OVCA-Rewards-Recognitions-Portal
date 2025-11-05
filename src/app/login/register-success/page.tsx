@@ -10,14 +10,14 @@ export default function RegisterSuccess() {
         {/* Tab Section */}
         <div className="flex justify-center pt-8">
           <div className="text-center pb-3 border-b-2 border-[var(--maroon)] w-[40%]">
-            <span className="text-[var(--maroon)] font-semibold text-lg">
+            <span className="text-[var(--maroon)] font-medium text-lg cursor-default">
               Register
             </span>
           </div>
         </div>
 
         {/* Success Message */}
-        <div className="px-6 sm:px-12 py-10 sm:py-16 text-center">
+        <div className="px-6 sm:px-12 mt-[-20px] sm:py-16 text-center">
           <p className="text-gray-900 text-base sm:text-lg leading-relaxed tracking-normal mb-6">
             Thank you for registering. If approved, your login credentials will be sent to your official UP email
             address.
