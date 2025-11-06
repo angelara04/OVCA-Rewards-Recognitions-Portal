@@ -1,10 +1,16 @@
 import Image from "next/image";
 
-export default function Header() {
+interface HeaderProps {
+  variant?: "default" | "login";
+}
+
+export default function Header({ variant = "default" }: HeaderProps) {
+  const imageSrc = variant === "login" ? "/login-header.png" : "/header.png";
+  
   return (
-    <header className="w-full flex justify-center items-center bg-[#660000]shadow-md overflow-hidden">
+    <header className="w-full flex justify-center items-center bg-[#660000] shadow-md overflow-hidden">
       <Image
-        src="/header.png"
+        src={imageSrc}
         width={5000}
         height={5000}
         alt="UP Mindanao Gawad Tsanselor Header"
