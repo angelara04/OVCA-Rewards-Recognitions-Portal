@@ -70,3 +70,69 @@ export async function deleteRejectedUser(id: string) {
   const supabase = await createClient()
   await supabase.from('registry').delete().eq('id', id)
 }
+
+export async function promoteToCommittee(userId: string) {
+  const supabase = await createClient()
+  if (!userId) return { success: false, message: 'User ID is required.' }
+
+  const { data: user, error: fetchError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (fetchError) return { success: false, message: 'Error fetching user.' }
+  if (!user) return { success: false, message: 'User not found.' }
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ role: 'committee' })
+    .eq('id', userId)
+
+  if (updateError) return { success: false, message: 'Failed to update role.' }
+
+  return { success: true, message: `User ${userId} promoted to committee.` }
+}
+
+export async function removeFromCommittee(userId: string) {
+  const supabase = await createClient()
+  if (!userId) return { success: false, message: 'User ID is required.' }
+
+  const { data: user, error: fetchError } = await supabase
+    .from('profiles')
+    .select('id, role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (fetchError) return { success: false, message: 'Error fetching user.' }
+  if (!user) return { success: false, message: 'User not found.' }
+  if (user.role !== 'committee')
+    return { success: false, message: 'User is not a committee member.' }
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ role: 'nominator' })
+    .eq('id', userId)
+
+  if (updateError)
+    return { success: false, message: 'Failed to remove from committee.' }
+
+  return { success: true, message: `User ${userId} removed from committee.` }
+}
+
+export async function getCommitteeMembers() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, role')
+    .eq('role', 'committee')
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching committee members:', error)
+    return []
+  }
+
+  return data || []
+}
+
