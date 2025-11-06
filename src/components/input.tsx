@@ -27,6 +27,7 @@ export default function InputField({
       <input
         type={type}
         id={id}
+        name={id}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange && onChange(e.target.value)}
