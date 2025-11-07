@@ -2,7 +2,7 @@ import React from "react";
 import clsx from "clsx";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "action" | "status" | "submit" | "reset" | "disabled";
+  variant?: "primary" | "secondary" | "action" | "status" | "submit" | "reset" | "disabled" | "view";
   size?: "sm" | "md" | "lg";
 }
 
@@ -33,6 +33,7 @@ export default function Button({
     submit: "rounded-sm bg-[var(--forest-green)] text-white hover:bg-[#004d38]",
     reset: "rounded-sm bg-[var(--maroon)] text-white hover:bg-[#660000]",
     disabled: "rounded-sm bg-[var(--grey)] text-[var(--dark-grey)] cursor-not-allowed",
+    view: "rounded-md bg-[var(--grey)] text-[var(--black)] hover:bg-[#cce5ff] py-0.5 px-3 text-xs",
   }[variant];
 
   return (
