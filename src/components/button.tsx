@@ -44,7 +44,7 @@ export default function Button({
     disabled:
       "rounded-sm bg-[var(--grey)] text-[var(--dark-grey)] cursor-not-allowed",
     maroon: "rounded-sm bg-[var(--maroon)] text-white hover:bg-[#660000]",
-    view: "rounded-md bg-[var(--grey)] text-[var(--black)] hover:bg-[#cce5ff] py-0.5 px-3 text-xs",
+    view: "rounded-md bg-[var(--grey)] text-[var(--black)] hover:bg-[#D0D0D0] py-0.5 px-3 text-xs",
   }[variant];
 
   return (
