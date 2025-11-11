@@ -21,6 +21,7 @@ export default function Sidebar({ role }: SidebarProps) {
         "Pending Reviews",
         "Scored Nominations",
         "Committee Scoring",
+        "Profile Information",
       ];
       break;
     case "hr":
@@ -33,7 +34,12 @@ export default function Sidebar({ role }: SidebarProps) {
       ];
       break;
     case "nominator":
-      tabs = ["Dashboard", "Nomination Forms", "My Nominations"];
+      tabs = [
+        "Dashboard",
+        "Nomination Forms",
+        "My Nominations",
+        "Profile Information",
+      ];
       break;
   }
 

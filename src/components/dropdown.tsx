@@ -5,13 +5,14 @@ import { ChevronDown } from "lucide-react";
 import clsx from "clsx";
 import Link from "next/link";
 import { Category } from "../app/store/category";
+
 interface Option {
   label: string;
   href: string;
 }
 
 interface Props {
-  displayText: string; // default placeholder
+  displayText: string;
   options: Option[];
 }
 
@@ -21,16 +22,16 @@ export default function Dropdown({ displayText, options }: Props) {
 
   const toggleDropdown = () => setIsOpen(!isOpen);
 
-  // if nothing has been selected yet, show displayText
   const displayValue =
     selectedCategory === "Select Category" ? displayText : selectedCategory;
 
   return (
-    <div className="w-full h-auto">
+    // ⬇️ make this relative so absolute children use it as reference
+    <div className="relative w-full h-auto">
       {/* Dropdown Header */}
       <div
         onClick={toggleDropdown}
-        className="w-full px-4 py-2  outline-1 outline-[var(--outline-grey)] flex justify-between items-center cursor-pointer"
+        className="w-full px-4 py-2 outline outline-1 outline-[var(--outline-grey)] flex justify-between items-center cursor-pointer bg-white rounded-md"
       >
         <div
           className={clsx("text-[var(--dark-grey)]", {
@@ -47,7 +48,8 @@ export default function Dropdown({ displayText, options }: Props) {
       {/* Dropdown Options */}
       <div
         className={clsx(
-          "flex flex-col bg-[var(--light-grey)]  outline-1 outline-[var(--outline-grey)] transition-all duration-200",
+          // ⬇️ w-full + left-0 + absolute inside relative parent = perfect width match
+          "absolute left-0 w-full flex flex-col bg-[var(--light-grey)] outline-1 outline-[var(--outline-grey)] rounded-md mt-1 transition-all duration-200 z-50 shadow-md",
           { hidden: !isOpen }
         )}
       >
