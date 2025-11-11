@@ -56,6 +56,8 @@ export default function Table<T>({
           ? "Approved"
           : statusStr.toLowerCase() === "rejected"
           ? "Rejected"
+          : statusStr.toLowerCase() === "completed"
+          ? "Completed"
           : statusStr; // allow "In Progress", "Qualified", etc.
       return <StatusBadge status={mappedStatus as any} />;
     }
@@ -81,7 +83,10 @@ export default function Table<T>({
             if (typeof c.width === "number") {
               return <col key={c.key} style={{ width: `${c.width}px` }} />;
             }
-            if (typeof c.width === "string" && /^(?:\d+(?:px|%)|rem|em)$/.test(c.width)) {
+            if (
+              typeof c.width === "string" &&
+              /^(?:\d+(?:px|%)|rem|em)$/.test(c.width)
+            ) {
               return <col key={c.key} style={{ width: c.width }} />;
             }
             // no explicit width: allow browser to size
@@ -112,9 +117,7 @@ export default function Table<T>({
               </th>
             ))}
             {renderActions && (
-              <th
-                className="py-3 px-4 font-medium text-right sticky top-0 right-0 bg-[var(--maroon)] z-30 text-white border-none"
-              >
+              <th className="py-3 px-4 font-medium text-right sticky top-0 right-0 bg-[var(--maroon)] z-30 text-white border-none">
                 Actions
               </th>
             )}
