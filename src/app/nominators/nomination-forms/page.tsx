@@ -240,7 +240,7 @@ export default function Page({ Fname }: LayoutProps) {
                 rows={6}
                 className="w-full border border-[var(--outline-grey)] rounded-lg p-3 resize-none focus:ring-2 focus:ring-[var(--maroon)]"
               />
-              <div className="text-right text-xs text-[var(--light-grey)]">{descWords}/250 words</div>
+              <div className="text-right text-xs text-[var(--dark-grey)]">{descWords}/250 words</div>
             </div>
 
             {/* File Upload */}
@@ -286,7 +286,7 @@ export default function Page({ Fname }: LayoutProps) {
                         <FileText className="w-6 h-6 text-[var(--dark-grey)]" />
                         <div>
                           <p className="text-sm font-medium text-[var(--dark-grey)]">{entry.file.name}</p>
-                          <p className="text-xs text-[var(--light-grey)]">{formatFileSize(entry.file.size)}</p>
+                          <p className="text-xs text-[var(--dark-grey)]">{formatFileSize(entry.file.size)}</p>
                         </div>
                       </div>
 
