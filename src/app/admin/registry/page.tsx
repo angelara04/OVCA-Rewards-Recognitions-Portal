@@ -6,7 +6,7 @@ import {
   getApprovedRegistrations,
   approveRegistration,
   denyRegistration,
-} from './actions'
+} from '@/app/hr/actions'
 
 export default function RegistryApprovalPage() {
   const [pending, setPending] = useState<any[]>([])
