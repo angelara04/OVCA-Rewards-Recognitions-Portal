@@ -46,8 +46,9 @@ export default function Page({ Fname }: LayoutProps) {
 
   const categoryOptions = [
     { label: "Select Category", href: "#" },
-    { label: "Category A", href: "#" },
-    { label: "Category B", href: "#" },
+    { label: "Non-Teaching Personnel (Junior and Industrial Level)", href: "#" },
+    { label: "Non-Teaching Personnel (Senior Level)", href: "#" },
+    { label: "Non-Teaching Personnel (Non-Supervisory Level)", href: "#" },
   ];
 
   const acceptedTypes = [".jpg", ".png", ".zip", ".docx", ".pdf"];
