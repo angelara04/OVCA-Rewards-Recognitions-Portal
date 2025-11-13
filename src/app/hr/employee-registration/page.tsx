@@ -166,8 +166,12 @@ export default function Page() {
 
         <div className="mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
           {loading ? (
-            <div className="p-8">Loading...</div>
-          ) : hasResults ? (
+          <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+            <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--dark-grey)] text-sm font-medium">Loading...</p>
+          </div>
+        ) : hasResults ? (
+
             <div className="w-full overflow-auto">
               <Table
                 columns={columns}
@@ -184,22 +188,22 @@ export default function Page() {
 
                   return (
                     <button
-                      disabled={!isClickable}
-                      className={`${iconColor} ${cursor}`}
-                      onClick={(e) => {
-                        if (!isClickable) return;
-                        const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
-                        setDropdownPosition({
-                          top: buttonRect.bottom - containerRect.top + 4,
-                          left: buttonRect.left - containerRect.left - 90,
-                        });
-                        // toggle the same index to close
-                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
-                      }}
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
+                    disabled={!isClickable}
+                    className={`${iconColor} ${cursor} hover:text-[var(--hover-maroon)] transition-colors duration-150`}
+                    onClick={(e) => {
+                      if (!isClickable) return;
+                      const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const containerRect = document.querySelector(".content-area")!.getBoundingClientRect();
+                      setDropdownPosition({
+                        top: buttonRect.bottom - containerRect.top + 4,
+                        left: buttonRect.left - containerRect.left - 90,
+                      });
+                      setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                    }}
+                  >
+                    <MoreHorizontal size={18} />
+                  </button>
+
                   );
                 }}
               />
