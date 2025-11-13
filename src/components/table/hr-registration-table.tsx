@@ -164,7 +164,7 @@ export default function Table<T>({
                   </td>
                 );
               })}
-            // Render actions column if provided
+            
             {renderActions && (
               <td className=" sticky right-0 bg-white z-30 w-[100px] border-l border-[var(--outline-grey)]">
                 <div className="flex items-center justify-center h-full">
