@@ -45,10 +45,10 @@ export default function ReviewDashboardPage() {
             i % 4 === 0
               ? "In Progress"
               : i % 4 === 1
-              ? "Complete"
+              ? "Completed"
               : i % 4 === 2
               ? "Not Started"
-              : "Complete",
+              : "Completed",
         })),
     []
   );
@@ -117,7 +117,7 @@ export default function ReviewDashboardPage() {
               columns={columns}
               data={filteredData}
               minTableWidth={1200}
-              renderActions={(_row, i) => {
+              renderActions={(row, i) => {
                 // left border that stays with sticky actions column
                 return (
                   <div className="h-full flex items-center justify-end pl-3">
@@ -163,11 +163,21 @@ export default function ReviewDashboardPage() {
               onCloseAction={() => setOpenDropdownIndex(null)}
               items={[
                 {
-                  label: "Evaluate",
+                  label:
+                    filteredData[openDropdownIndex!].status === "Completed"
+                      ? "View"
+                      : "Evaluate",
                   // use black text (per your spec)
                   color: "text-black",
                   onClickAction: () => {
-                    console.log("Evaluate", filteredData[openDropdownIndex!]);
+                    const item = filteredData[openDropdownIndex!];
+                    if (item.status === "Completed") {
+                      console.log("View Evaluation", item);
+                      // navigate or open evaluation viewer...
+                    } else {
+                      console.log("Evaluate", item);
+                      // navigate to evaluation form...
+                    }
                     setOpenDropdownIndex(null);
                   },
                 },

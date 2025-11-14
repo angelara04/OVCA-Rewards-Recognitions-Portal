@@ -38,37 +38,29 @@ export default function CommitteeScoring({ children }: CommitteeScoringProps) {
   } | null>(null);
 
   // 🧩 Dummy data
-  const data: Nominee[] = useMemo(
-    () =>
-      Array(12)
-        .fill(null)
-        .map((_, i) => ({
-          nomineeid: `E012501125${i}`,
-          nomineename: `Maria Del Santos ${i + 1}`,
-          category:
-            i % 3 === 0
-              ? "Non-Teaching Personnel (Junior and Industrial Level)"
-              : i % 3 === 1
-              ? "Non-Teaching Personnel (Senior Level)"
-              : "Non-Teaching Personnel (Non-Supervisory Level)",
-          nominatorid: `E012501125`,
-          nominatorname: "Jose Rizal",
-          datesubmitted: `2025-10-${(12 - (i % 10))
-            .toString()
-            .padStart(2, "0")}`,
-          status:
-            i % 4 === 0
-              ? "In Progress"
-              : i % 4 === 1
-              ? "Completed"
-              : i % 4 === 2
-              ? "Not Started"
-              : "Completed",
-        })),
-    []
-  );
+  const data: Nominee[] = useMemo(() => {
+    const categoryOptions = [
+      "Non-Teaching Personnel (Junior and Industrial Level)",
+      "Non-Teaching Personnel (Senior Level)",
+      "Non-Teaching Personnel (Non-Supervisory Level)",
+    ];
 
-  // 🧮 Filter table
+    return Array.from({ length: 12 }, (_, i) => {
+      const status = i % 2 === 0 ? "In Progress" : "Not Started";
+
+      return {
+        nomineeid: `E012501125${i}`,
+        nomineename: `Maria Del Santos ${i + 1}`,
+        category: categoryOptions[i % 3],
+        nominatorid: `E012501125`,
+        nominatorname: "Jose Rizal",
+        datesubmitted: `2025-10-${(12 - (i % 10)).toString().padStart(2, "0")}`,
+        status,
+      };
+    });
+  }, []);
+
+  // Filter table
   const filteredData = useMemo(() => {
     let result = data;
     if (selectedCategory && selectedCategory !== "Select Category") {

@@ -74,21 +74,21 @@ export default function MyNominationsPage() {
       nomineename: "Pedro Santos",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
     {
       nomineeid: "E012501133",
       nomineename: "Liza Gomez",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
     {
       nomineeid: "E012501134",
       nomineename: "Tomas Villanueva",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
   ];
 
@@ -102,8 +102,8 @@ export default function MyNominationsPage() {
 
   const hasResults = filteredData.length > 0;
 
+  // Table columns - adapted for My Nominations (hide Nominee ID if not needed)
   const columns: Column[] = [
-    { key: "nomineeid", label: "Nominee ID" },
     { key: "nomineename", label: "Nominee Name" },
     { key: "category", label: "Category" },
     { key: "datesubmitted", label: "Date Submitted" },
@@ -113,7 +113,7 @@ export default function MyNominationsPage() {
   function openActionsDropdown(e: React.MouseEvent, index: number) {
     const button = e.currentTarget as HTMLElement;
 
-    // prefer the closest table container (matches HR dashboard behavior)
+    // prefer the closest table container (same behavior as dashboard/review pages)
     const tableContainer =
       (button.closest(".table-container") as HTMLElement | null) ??
       (document.querySelector(".table-container") as HTMLElement | null);
@@ -143,6 +143,60 @@ export default function MyNominationsPage() {
     });
     setOpenDropdownIndex((prev) => (prev === index ? null : index));
   }
+
+  const dropdownItems = useMemo(() => {
+    if (openDropdownIndex === null) return [];
+    const item = filteredData[openDropdownIndex];
+    if (!item) return [];
+
+    if (item.status === "Completed") {
+      return [
+        {
+          label: "View",
+          color: "text-black",
+          onClickAction: () => {
+            console.log("View", item);
+            setOpenDropdownIndex(null);
+          },
+        },
+      ];
+    }
+
+    if (item.status === "In Progress") {
+      return [
+        {
+          label: "Continue",
+          color: "text-black",
+          onClickAction: () => {
+            console.log("Continue", item);
+            setOpenDropdownIndex(null);
+          },
+        },
+        {
+          label: "Delete",
+          color: "text-red-600",
+          onClickAction: () => {
+            console.log("Delete", item);
+            // implement delete confirmation/handler here
+            setOpenDropdownIndex(null);
+          },
+        },
+      ];
+    }
+
+    // fallback for other statuses: show Continue
+    return [
+      {
+        label: "Continue",
+        color: "text-black",
+        onClickAction: () => {
+          console.log("Continue", item);
+          setOpenDropdownIndex(null);
+        },
+      },
+    ];
+  }, [openDropdownIndex, filteredData]);
+
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       {/* Header */}
@@ -177,9 +231,7 @@ export default function MyNominationsPage() {
               renderActions={(_row, i) => {
                 const row = filteredData[i];
                 const isInteractive =
-                  row.status === "In Progress" ||
-                  row.status === "Not Started" ||
-                  row.status === "Completed";
+                  row.status === "In Progress" || row.status === "Completed";
                 const iconColor = isInteractive
                   ? "text-[var(--maroon)]"
                   : "text-[var(--outline-grey)]";
@@ -195,6 +247,7 @@ export default function MyNominationsPage() {
                       if (!isInteractive) return;
                       openActionsDropdown(e, i);
                     }}
+                    aria-label="Actions"
                   >
                     <MoreHorizontal size={18} />
                   </button>
@@ -209,19 +262,7 @@ export default function MyNominationsPage() {
                 <DropdownMenu
                   position={dropdownPosition}
                   onCloseAction={() => setOpenDropdownIndex(null)}
-                  items={[
-                    {
-                      label: "Review",
-                      color: "text-black",
-                      onClickAction: () => {
-                        console.log(
-                          "Evaluate",
-                          filteredData[openDropdownIndex!]
-                        );
-                        setOpenDropdownIndex(null);
-                      },
-                    },
-                  ]}
+                  items={dropdownItems}
                 />
               )}
           </div>
