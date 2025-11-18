@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Section from "@/components/section";
 import Button from "@/components/button";
 import Input from "@/components/input";
 import Dropdown from "@/components/dropdown";
+import SearchableDropdown from "@/components/searchable-dropdown";
 import { Upload, FileText, X } from "lucide-react";
 
 interface LayoutProps {
@@ -20,7 +21,11 @@ export default function Page({ Fname }: LayoutProps) {
   // basic fields
   const [nomineeName, setNomineeName] = useState("");
   const [position, setPosition] = useState("");
-  const [unit, setUnit] = useState("");
+  
+  // State for searchable unit input
+  const [unitSearchText, setUnitSearchText] = useState("");
+  const [unit, setUnit] = useState(""); // This will hold the selected/confirmed unit name
+  
   const [length, setLength] = useState("");
   const [description, setDescription] = useState("");
   const [descWords, setDescWords] = useState(0);
@@ -43,12 +48,33 @@ export default function Page({ Fname }: LayoutProps) {
       description.trim() === "" ? 0 : description.trim().split(/\s+/).length;
     setDescWords(words);
   }, [description]);
+  
+  // Update unitSearchText when 'unit' (the final selected value) changes
+  useEffect(() => {
+    if (unit) {
+      setUnitSearchText(unit);
+    }
+  }, [unit]);
 
   const categoryOptions = [
     { label: "Select Category", href: "#" },
     { label: "Non-Teaching Personnel (Junior and Industrial Level)", href: "#" },
     { label: "Non-Teaching Personnel (Senior Level)", href: "#" },
     { label: "Non-Teaching Personnel (Non-Supervisory Level)", href: "#" },
+  ];
+
+    const officeOptions = [
+    { label: "Select Unit/Office/College", href: "#" },
+    { label: "Office of the Dean", href: "#" },
+    { label: "College of Science and Mathematics", href: "#" },
+    { label: "Office of the Vice Chancellor for Academic Affairs", href: "#" },
+    { label: "Office of the Vice Chancellor for Administration", href: "#" },
+    { label: "HR Development Office (HRDO)", href: "#" },
+    { label: "Accounting Office", href: "#" },
+    { label: "Supply and Property Management Office (SPMO)", href: "#" },
+    { label: "IT Center", href: "#" },
+    { label: "College of Arts and Letters", href: "#" },
+    { label: "College of Engineering", href: "#" },
   ];
 
   const acceptedTypes = [".jpg", ".png", ".zip", ".docx", ".pdf"];
@@ -165,6 +191,15 @@ export default function Page({ Fname }: LayoutProps) {
     setSignaturePreview(null);
   };
 
+  // Numeric change handler for Length of Service
+  const handleLengthChange = (value: string) => {
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    if (numericValue === '' || /^\d+(\.\d*)?$/.test(numericValue)) {
+      setLength(numericValue);
+    }
+  };
+
+
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-start p-10">
       <div className="w-full mx-auto relative">
@@ -212,20 +247,24 @@ export default function Page({ Fname }: LayoutProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                id="unit"
+              {/* Unit/College/Office - Using the new component */}
+              <SearchableDropdown
                 label="Unit / Office / College"
-                placeholder="e.g. Office of the Dean"
-                value={unit}
-                onChange={setUnit}
-                width="w-full"
+                placeholder="Search Unit/Office/College"
+                options={officeOptions}
+                value={unitSearchText}
+                onChange={setUnitSearchText}
+                onSelect={setUnit} // Set the final unit when an item is selected
               />
+
+              {/* Length of Service*/}
               <Input
                 id="length"
-                label="Length of Service with UP"
-                placeholder="e.g. 10 years"
+                label="Length of Service with UP (Years)"
+                placeholder="e.g. 10"
                 value={length}
-                onChange={setLength}
+                type="number" 
+                onChange={handleLengthChange}
                 width="w-full"
               />
             </div>
