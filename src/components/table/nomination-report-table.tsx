@@ -1,7 +1,8 @@
 "use client"
 import type React from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import clsx from "clsx"
-import { Download } from "lucide-react"
+import { MoreHorizontal, Download, Eye } from "lucide-react"
 
 export interface Column {
   key: string
@@ -13,16 +14,23 @@ export interface Column {
 interface TableProps<T> {
   columns: Column[]
   data: T[]
-  onDownloadClick?: (row: T, index: number) => void
+  onDownloadAction?: (row: T, index: number) => void 
+  onViewAction?: (row: T, index: number) => void 
   minTableWidth?: number | string
 }
 
 export default function NominationReportTable<T>({
   columns,
   data,
-  onDownloadClick,
+  onDownloadAction,
+  onViewAction,
   minTableWidth = "1400px",
 }: TableProps<T>) {
+  
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
+  const actionButtonRef = useRef<HTMLButtonElement>(null)
+
   const renderCellValue = (col: Column, row: any, rowIndex: number) => {
     const raw = row?.[col.key]
 
@@ -53,6 +61,66 @@ export default function NominationReportTable<T>({
     return row?.status === "NOT STARTED" || row?.status === "ON GOING"
   }
 
+  const hasActions = onDownloadAction || onViewAction
+  
+  const calculatePosition = useCallback((buttonElement: HTMLButtonElement) => {
+    const rect = buttonElement.getBoundingClientRect()
+    const DROPDOWN_WIDTH = 144
+    const RIGHT_OFFSET = 10
+    
+    setDropdownPosition({
+      top: rect.bottom + 10, 
+      left: rect.right - DROPDOWN_WIDTH - RIGHT_OFFSET, 
+    })
+  }, [])
+  
+  const handleActionClick = (index: number, buttonElement: HTMLButtonElement) => {
+    if (openDropdownIndex === index) {
+      setOpenDropdownIndex(null)
+      setDropdownPosition(null)
+    } else {
+      setOpenDropdownIndex(index)
+      calculatePosition(buttonElement)
+      actionButtonRef.current = buttonElement
+    }
+  }
+
+  // Handle click outside to close the dropdown
+  useEffect(() => {
+    const closeDropdown = (event: MouseEvent) => {
+      if (actionButtonRef.current && !actionButtonRef.current.contains(event.target as Node)) {
+        setOpenDropdownIndex(null)
+        setDropdownPosition(null)
+      }
+    }
+
+    if (openDropdownIndex !== null) {
+      document.addEventListener('mousedown', closeDropdown)
+      window.addEventListener('scroll', () => {
+        if (actionButtonRef.current) {
+          calculatePosition(actionButtonRef.current)
+        }
+      })
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', closeDropdown)
+      window.removeEventListener('scroll', () => {})
+    }
+  }, [openDropdownIndex, calculatePosition])
+
+
+  const handleActionSelect = (action: 'download' | 'view', row: T, index: number) => {
+    setOpenDropdownIndex(null)
+    setDropdownPosition(null)
+    if (action === 'download' && onDownloadAction) {
+      onDownloadAction(row, index)
+    }
+    if (action === 'view' && onViewAction) {
+      onViewAction(row, index)
+    }
+  }
+
   return (
     <div className="overflow-auto border border-[var(--outline-grey)] rounded-md flex-1 max-h-[420px]">
       <table
@@ -61,18 +129,18 @@ export default function NominationReportTable<T>({
           minWidth: typeof minTableWidth === "number" ? `${minTableWidth}px` : minTableWidth,
         }}
       >
-        {/* Header */}
+        {/* ... (colgroup and thead remain unchanged) ... */}
         <colgroup>
-          {columns.map((c) => {
-            if (typeof c.width === "number") {
-              return <col key={c.key} style={{ width: `${c.width}px` }} />
-            }
-            if (typeof c.width === "string" && /^(?:\d+(?:px|%)|rem|em)$/.test(c.width)) {
-              return <col key={c.key} style={{ width: c.width }} />
-            }
-            return <col key={c.key} />
-          })}
-          {onDownloadClick && <col key="__download" style={{ width: 72 }} />}
+          {columns.map((c) => (
+            typeof c.width === "number" ? (
+              <col key={c.key} style={{ width: `${c.width}px` }} />
+            ) : typeof c.width === "string" && /^(?:\d+(?:px|%)|rem|em)$/.test(c.width) ? (
+              <col key={c.key} style={{ width: c.width }} />
+            ) : (
+              <col key={c.key} />
+            )
+          ))}
+          {hasActions && <col key="__actions" style={{ width: 72 }} />}
         </colgroup>
 
         <thead>
@@ -89,7 +157,7 @@ export default function NominationReportTable<T>({
                 {col.label}
               </th>
             ))}
-            {onDownloadClick && (
+            {hasActions && (
               <th className="py-3 px-4 font-medium text-center sticky top-0 right-0 bg-[var(--maroon)] z-30 text-white border-none">
                 Actions
               </th>
@@ -118,28 +186,75 @@ export default function NominationReportTable<T>({
                 )
               })}
 
-              {/* Download Actions column */}
-              {onDownloadClick && (
-                <td className="py-3 px-3 text-center sticky right-0 bg-white z-20 border-l border-[var(--outline-grey)]">
-                  <button
-                    onClick={() => onDownloadClick(row, i)}
-                    disabled={isDownloadDisabled(row)}
-                    className={clsx(
-                      "transition-colors",
-                      isDownloadDisabled(row)
-                        ? "text-[var(--dark-grey)] cursor-not-allowed"
-                        : "text-[var(--maroon)] hover:cursor-pointer",
-                    )}
-                    aria-label="Download"
-                  >
-                    <Download size={18} />
-                  </button>
+              {/* ACTIONS COLUMN */}
+              {hasActions && (
+                <td 
+                  className="py-3 px-3 text-center sticky right-0 bg-white z-20 border-l border-[var(--outline-grey)]"
+                > 
+                  <div className="relative inline-block text-left">
+                    <button
+                      type="button"
+                      onClick={(e) => handleActionClick(i, e.currentTarget)}
+                      className="text-[var(--maroon)] hover:cursor-pointer transition-colors p-1 rounded-full hover:bg-[var(--outline-grey)] focus:outline-none"
+                      aria-expanded={openDropdownIndex === i}
+                      aria-label="More Actions"
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  </div>
                 </td>
               )}
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* FIXED POSITION DROPDOWN (Rendered outside the table structure) */}
+      {openDropdownIndex !== null && dropdownPosition && data[openDropdownIndex] && (
+          <div
+            className="z-[100] w-36 origin-top-right rounded-md shadow-lg bg-white"
+            role="menu"
+            style={{
+              position: 'fixed',
+              top: dropdownPosition.top,
+              left: dropdownPosition.left,
+            }}
+          >
+            {/* FIX: Removed py-1 from wrapper div */}
+            <div>
+              
+              {/* View Option */}
+              {onViewAction && (
+                <button
+                  onClick={() => handleActionSelect('view', data[openDropdownIndex], openDropdownIndex)}
+                  // FIX: Increased horizontal padding px-4 to ensure full width usage
+                  className="group flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900" 
+                  role="menuitem"
+                >
+                  View
+                </button>
+              )}
+              
+              {/* Download Option */}
+              {onDownloadAction && (
+                <button
+                  onClick={() => handleActionSelect('download', data[openDropdownIndex], openDropdownIndex)}
+                  disabled={isDownloadDisabled(data[openDropdownIndex])}
+                  // FIX: Increased horizontal padding px-4 to ensure full width usage
+                  className={clsx(
+                    "group flex items-center w-full px-4 py-2 text-sm",
+                    isDownloadDisabled(data[openDropdownIndex])
+                      ? "text-gray-400 cursor-not-allowed"
+                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900",
+                  )}
+                  role="menuitem"
+                >
+                  Download
+                </button>
+              )}
+            </div>
+          </div>
+      )}
     </div>
   )
 }

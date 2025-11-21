@@ -69,24 +69,24 @@ export default function Page() {
       //     }
       //   }),
 
-      // // 11-15 COMPLETED (submittedCount == totalMembersPerNominee)
-      // ...Array(5)
-      //   .fill(null)
-      //   .map((_, i) => {
-      //     const idx = i + 10 // 10..14 -> name 11..15
-      //     const scores = [85, 90, 88]
-      //     const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) // 2 decimal places
-      //     return {
-      //       nomineeid: `E0125${1000 + idx}`,
-      //       nomineename: `Maria Del Santos ${idx + 1}`, // 11..15
-      //       category: "Administrative Excellence",
-      //       committeescore: scores.join(", "),
-      //       averagescore: avg, // string like "87.67"
-      //       status: "COMPLETED" as const,
-      //       submittedCount: totalMembersPerNominee, // completed => full submissions
-      //       mixedScores: scores,
-      //     }
-      //   }),
+      // 11-15 COMPLETED (submittedCount == totalMembersPerNominee)
+      ...Array(5)
+        .fill(null)
+        .map((_, i) => {
+          const idx = i + 10 // 10..14 -> name 11..15
+          const scores = [85, 90, 88]
+          const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) // 2 decimal places
+          return {
+            nomineeid: `E0125${1000 + idx}`,
+            nomineename: `Maria Del Santos ${idx + 1}`, // 11..15
+            category: "Administrative Excellence",
+            committeescore: scores.join(", "),
+            averagescore: avg, // string like "87.67"
+            status: "COMPLETED" as const,
+            submittedCount: totalMembersPerNominee, // completed => full submissions
+            mixedScores: scores,
+          }
+        }),
     ]
   )
 
@@ -195,8 +195,14 @@ export default function Page() {
     },
   ]
 
+  // Fix 1: New function names to match component props
   const handleDownload = (row: Nomination, index: number) => {
-    console.log("Download", row)
+    console.log("Download action triggered for:", row)
+  }
+
+  // Fix 2: New function for View action
+  const handleView = (row: Nomination, index: number) => {
+    console.log("View action triggered for:", row)
   }
 
   useEffect(() => {
@@ -225,7 +231,8 @@ export default function Page() {
 
           <div className="mt-4 flex flex-col w-full relative">
             {hasResults ? (
-              <NominationReportTable columns={columns} data={filteredData} onDownloadClick={(row, index) => handleDownload(row, index)} />
+              // FIX 3: Update prop names here
+              <NominationReportTable columns={columns} data={filteredData} onDownloadAction={handleDownload} onViewAction={handleView} />
             ) : (
               <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
                 <FolderX size={100} className="mb-4 opacity-70" />
@@ -263,7 +270,8 @@ export default function Page() {
 
         <div className="mt-4 flex flex-col w-full relative">
           {hasResults ? (
-            <NominationReportTable columns={columns} data={filteredData} onDownloadClick={(row, index) => handleDownload(row, index)} />
+            // FIX 4: Update prop names here
+            <NominationReportTable columns={columns} data={filteredData} onDownloadAction={handleDownload} onViewAction={handleView} />
           ) : (
             <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
               <FolderX size={100} className="mb-4 opacity-70" />
