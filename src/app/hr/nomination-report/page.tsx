@@ -36,8 +36,13 @@ export default function Page() {
     const pageWidth = doc.internal.pageSize.getWidth();
     let y = 10;
 
-    filteredData.forEach((nominee, idx) => {
-      // HEADER - nominee info
+    // ← store summary here
+    const summaryData: { name: string; average: string }[] = [];
+
+    filteredData.forEach((nominee) => {
+      // ----------------------
+      // NOMINEE HEADER
+      // ----------------------
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.text(`Nominee Name: ${nominee.nomineename}`, 10, y);
@@ -67,7 +72,10 @@ export default function Page() {
 
       doc.setFont("helvetica", "normal");
 
-      // MOCK COMMITTEE DATA — replace with real DB later
+      // ----------------------
+      // MOCK COMMITTEE DATA
+      // (Replace this with real DB records later)
+      // ----------------------
       const committeeData = [
         {
           id: "C001",
@@ -106,7 +114,7 @@ export default function Page() {
       });
 
       // ----------------------
-      // AVERAGE SCORE
+      // AVERAGE SCORE FOR THIS NOMINEE
       // ----------------------
       const validScores = committeeData
         .filter((c) => typeof c.score === "number")
@@ -119,12 +127,50 @@ export default function Page() {
             ).toFixed(2)
           : "N/A";
 
-      y += 4;
       doc.setFont("helvetica", "bold");
+      y += 4;
       doc.text(`Average Score: ${average}`, 10, y);
-      y += 10;
+      y += 12;
 
-      // Extra spacing + page break logic
+      // store for summary at the end
+      summaryData.push({
+        name: nominee.nomineename,
+        average: average,
+      });
+
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
+    });
+
+    // =====================================================
+    // FINAL SUMMARY SECTION
+    // =====================================================
+    doc.addPage();
+    y = 15;
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("SCORING SUMMARY", 10, y);
+    y += 10;
+
+    // Summary table header
+    doc.setFontSize(12);
+    doc.text("Nominee Name", 10, y);
+    doc.text("Average Score", 140, y);
+    y += 6;
+
+    doc.line(10, y, pageWidth - 10, y);
+    y += 4;
+
+    // Summary rows
+    doc.setFont("helvetica", "normal");
+    summaryData.forEach((item) => {
+      doc.text(item.name, 10, y);
+      doc.text(String(item.average), 140, y);
+      y += 7;
+
       if (y > 270) {
         doc.addPage();
         y = 10;
