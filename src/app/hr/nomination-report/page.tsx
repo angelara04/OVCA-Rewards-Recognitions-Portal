@@ -1,29 +1,141 @@
-"use client"
-import { useState, useMemo, useEffect } from "react"
-import { FolderX } from "lucide-react"
-import Button from "@/components/button"
-import { SearchBar } from "@/components/search-bar"
-import NominationReportTable, { type Column } from "@/components/table/nomination-report-table"
-import PortalStatusBadge from "@/components/portal-status-badge"
-import Section from "@/components/section"
+"use client";
+import { useState, useMemo, useEffect } from "react";
+import { FolderX } from "lucide-react";
+import Button from "@/components/button";
+import { SearchBar } from "@/components/search-bar";
+import NominationReportTable, {
+  type Column,
+} from "@/components/table/nomination-report-table";
+import PortalStatusBadge from "@/components/portal-status-badge";
+import Section from "@/components/section";
+import { jsPDF } from "jspdf";
 
 interface Nomination {
-  nomineeid: string
-  nomineename: string
-  category: string
-  committeescore: string
-  averagescore: string | number
-  status: "NOT STARTED" | "ON GOING" | "COMPLETED"
-  submittedCount?: number
-  mixedScores?: (number | "N/A")[]
+  nomineeid: string;
+  nomineename: string;
+  category: string;
+  committeescore: string;
+  averagescore: string | number;
+  status: "NOT STARTED" | "ON GOING" | "COMPLETED";
+  submittedCount?: number;
+  mixedScores?: (number | "N/A")[];
 }
 
 export default function Page() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isClient, setIsClient] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isClient, setIsClient] = useState(false);
+
+  //PDF
+  const generatePDF = () => {
+    if (!filteredData.length) {
+      alert("No data to generate PDF");
+      return;
+    }
+
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 10;
+
+    filteredData.forEach((nominee, idx) => {
+      // HEADER - nominee info
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Nominee Name: ${nominee.nomineename}`, 10, y);
+      y += 8;
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Nominee ID: ${nominee.nomineeid}`, 10, y);
+      y += 6;
+
+      doc.text(`Category: ${nominee.category}`, 10, y);
+      y += 10;
+
+      // ----------------------
+      // TABLE HEADER
+      // ----------------------
+      doc.setFont("helvetica", "bold");
+      doc.text("Committee ID", 10, y);
+      doc.text("Name", 50, y);
+      doc.text("Score", 110, y);
+      doc.text("Date", 140, y);
+      y += 6;
+
+      doc.setLineWidth(0.2);
+      doc.line(10, y, pageWidth - 10, y);
+      y += 4;
+
+      doc.setFont("helvetica", "normal");
+
+      // MOCK COMMITTEE DATA — replace with real DB later
+      const committeeData = [
+        {
+          id: "C001",
+          name: "John Doe",
+          score: nominee.mixedScores?.[0] ?? "N/A",
+          date: "2025-11-21",
+        },
+        {
+          id: "C002",
+          name: "Jane Smith",
+          score: nominee.mixedScores?.[1] ?? "N/A",
+          date: "2025-11-21",
+        },
+        {
+          id: "C003",
+          name: "Alice Tan",
+          score: nominee.mixedScores?.[2] ?? "N/A",
+          date: "2025-11-21",
+        },
+      ];
+
+      // ----------------------
+      // TABLE ROWS
+      // ----------------------
+      committeeData.forEach((c) => {
+        doc.text(c.id, 10, y);
+        doc.text(c.name, 50, y);
+        doc.text(String(c.score), 110, y);
+        doc.text(c.date, 140, y);
+        y += 6;
+
+        if (y > 270) {
+          doc.addPage();
+          y = 10;
+        }
+      });
+
+      // ----------------------
+      // AVERAGE SCORE
+      // ----------------------
+      const validScores = committeeData
+        .filter((c) => typeof c.score === "number")
+        .map((c) => Number(c.score));
+
+      const average =
+        validScores.length > 0
+          ? (
+              validScores.reduce((a, b) => a + b, 0) / validScores.length
+            ).toFixed(2)
+          : "N/A";
+
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.text(`Average Score: ${average}`, 10, y);
+      y += 10;
+
+      // Extra spacing + page break logic
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
+    });
+
+    doc.save("nomination-report.pdf");
+  };
 
   // per-nominee total committee members
-  const totalMembersPerNominee = 15
+  const totalMembersPerNominee = 15;
 
   // ---------- SAMPLE DATA: 15 rows (1..15) ----------
   const [data, setData] = useState<Nomination[]>(
@@ -32,19 +144,18 @@ export default function Page() {
     // YOU CAN ALSO COMMENT OUT ALL SECTIONS TO SEE EMPTY STATUS
     [
       // 1-5 NOT STARTED
-      ...Array(5)
-        .fill(null)
-        .map((_, i) => ({
-          nomineeid: `E0125${1000 + i}`, // E01251000 .. E01251004
-          nomineename: `Maria Del Santos ${i + 1}`, // 1..5
-          category: "Administrative Excellence",
-          committeescore: "",
-          averagescore: "",
-          status: "NOT STARTED" as const,
-          submittedCount: 0,
-          mixedScores: ["N/A", "N/A", "N/A"] as (number | "N/A")[],
-        })),
-
+      // ...Array(5)
+      //   .fill(null)
+      //   .map((_, i) => ({
+      //     nomineeid: `E0125${1000 + i}`, // E01251000 .. E01251004
+      //     nomineename: `Maria Del Santos ${i + 1}`, // 1..5
+      //     category: "Administrative Excellence",
+      //     committeescore: "",
+      //     averagescore: "",
+      //     status: "NOT STARTED" as const,
+      //     submittedCount: 0,
+      //     mixedScores: ["N/A", "N/A", "N/A"] as (number | "N/A")[],
+      //   })),
       // // 6-10 ON GOING (submittedCount < totalMembersPerNominee)
       // ...Array(5)
       //   .fill(null)
@@ -68,14 +179,15 @@ export default function Page() {
       //       mixedScores: mixed,
       //     }
       //   }),
-
       // 11-15 COMPLETED (submittedCount == totalMembersPerNominee)
       ...Array(5)
         .fill(null)
         .map((_, i) => {
-          const idx = i + 10 // 10..14 -> name 11..15
-          const scores = [85, 90, 88]
-          const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) // 2 decimal places
+          const idx = i + 10; // 10..14 -> name 11..15
+          const scores = [85, 90, 88];
+          const avg = (
+            scores.reduce((a, b) => a + b, 0) / scores.length
+          ).toFixed(2); // 2 decimal places
           return {
             nomineeid: `E0125${1000 + idx}`,
             nomineename: `Maria Del Santos ${idx + 1}`, // 11..15
@@ -85,36 +197,50 @@ export default function Page() {
             status: "COMPLETED" as const,
             submittedCount: totalMembersPerNominee, // completed => full submissions
             mixedScores: scores,
-          }
+          };
         }),
     ]
-  )
+  );
 
   // ------------- FILTER -------------
   const filteredData = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return data
-    return data.filter((d) => Object.values(d).join(" ").toLowerCase().includes(q))
-  }, [searchQuery, data])
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((d) =>
+      Object.values(d).join(" ").toLowerCase().includes(q)
+    );
+  }, [searchQuery, data]);
 
   // ---------- AGGREGATES & STATUS LOGIC ----------
   // total capacity = number of nominees * members per nominee
-  const totalCapacity = data.length * totalMembersPerNominee
-  const totalSubmitted = data.reduce((sum, d) => sum + (d.submittedCount || 0), 0)
+  const totalCapacity = data.length * totalMembersPerNominee;
+  const totalSubmitted = data.reduce(
+    (sum, d) => sum + (d.submittedCount || 0),
+    0
+  );
 
   // counts by row status (nominees)
-  const completedNomineeCount = data.filter((d) => d.status === "COMPLETED").length
-  const ongoingNomineeCount = data.filter((d) => d.status === "ON GOING").length
-  const notStartedNomineeCount = data.filter((d) => d.status === "NOT STARTED").length
+  const completedNomineeCount = data.filter(
+    (d) => d.status === "COMPLETED"
+  ).length;
+  const ongoingNomineeCount = data.filter(
+    (d) => d.status === "ON GOING"
+  ).length;
+  const notStartedNomineeCount = data.filter(
+    (d) => d.status === "NOT STARTED"
+  ).length;
 
   // derive the overall reportStatus from row statuses
-  let reportStatus: "NOT STARTED" | "ON GOING" | "COMPLETED"
+  let reportStatus: "NOT STARTED" | "ON GOING" | "COMPLETED";
   if (completedNomineeCount === data.length && data.length > 0) {
-    reportStatus = "COMPLETED"
-  } else if (ongoingNomineeCount > 0 || (completedNomineeCount > 0 && completedNomineeCount < data.length)) {
-    reportStatus = "ON GOING"
+    reportStatus = "COMPLETED";
+  } else if (
+    ongoingNomineeCount > 0 ||
+    (completedNomineeCount > 0 && completedNomineeCount < data.length)
+  ) {
+    reportStatus = "ON GOING";
   } else {
-    reportStatus = "NOT STARTED"
+    reportStatus = "NOT STARTED";
   }
 
   // UI config
@@ -124,27 +250,27 @@ export default function Page() {
         return {
           bgColor: "bg-[var(--light-red)]",
           buttonDisabled: true,
-        }
+        };
       case "ON GOING":
         return {
           bgColor: "bg-[var(--light-purple)]",
           buttonDisabled: true,
-        }
+        };
       case "COMPLETED":
         return {
           bgColor: "bg-[var(--light-green)]",
           buttonDisabled: false,
-        }
+        };
       default:
         return {
           bgColor: "bg-[var(--settings-grey)]",
           buttonDisabled: true,
-        }
+        };
     }
-  }
+  };
 
-  const { bgColor, buttonDisabled } = getReportUIConfig(reportStatus)
-  const hasResults = filteredData.length > 0
+  const { bgColor, buttonDisabled } = getReportUIConfig(reportStatus);
+  const hasResults = filteredData.length > 0;
 
   // ---------- TABLE COLUMNS ----------
   const columns: Column[] = [
@@ -156,8 +282,8 @@ export default function Page() {
       label: "Committee Score",
       width: 180,
       render: (value: string, row: Nomination) => {
-        if (row.status === "NOT STARTED") return "---"
-        const scores = row.mixedScores || ["N/A", "N/A", "N/A"]
+        if (row.status === "NOT STARTED") return "---";
+        const scores = row.mixedScores || ["N/A", "N/A", "N/A"];
         return (
           <div className="flex gap-2">
             {scores.map((score: number | "N/A", idx: number) => (
@@ -165,14 +291,16 @@ export default function Page() {
               <div
                 key={idx}
                 className={`w-8 h-6 text-xs flex items-center justify-center rounded ${
-                  score === "N/A" ? "bg-[var(--settings-grey)] text-black" : "bg-[var(--maroon)] text-white"
+                  score === "N/A"
+                    ? "bg-[var(--settings-grey)] text-black"
+                    : "bg-[var(--maroon)] text-white"
                 }`}
               >
                 {score}
               </div>
             ))}
           </div>
-        )
+        );
       },
     },
     {
@@ -181,42 +309,51 @@ export default function Page() {
       width: 150,
       render: (value: string | number, row: Nomination) => {
         // if numeric string or number, show with max 2 decimals (if number), otherwise show as is
-        if (value === "" || value === null || value === undefined) return "---"
+        if (value === "" || value === null || value === undefined) return "---";
         if (typeof value === "number") {
-          return (Math.round(value * 100) / 100).toFixed(2)
+          return (Math.round(value * 100) / 100).toFixed(2);
         }
-        // value is string (maybe already toFixed), but ensure two decimals if it's numeric-like
-        const parsed = Number(value)
+        // value is string (maybe already toFixed), but ensure two decimals if numeric-like
+        const parsed = Number(value);
         if (!isNaN(parsed)) {
-          return parsed.toFixed(2)
+          return parsed.toFixed(2);
         }
-        return value
+        return value;
       },
     },
-  ]
+  ];
 
   // Fix 1: New function names to match component props
   const handleDownload = (row: Nomination, index: number) => {
-    console.log("Download action triggered for:", row)
-  }
+    console.log("Download action triggered for:", row);
+  };
 
   // Fix 2: New function for View action
   const handleView = (row: Nomination, index: number) => {
-    console.log("View action triggered for:", row)
-  }
+    console.log("View action triggered for:", row);
+  };
 
   useEffect(() => {
-    setIsClient(true)
-  }, [])
+    setIsClient(true);
+  }, []);
 
   if (!isClient) {
     return (
-      <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
+      <Section
+        width="w-full"
+        height="min-h-screen"
+        alignment="items-center p-10"
+      >
         {/* Header */}
         <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
           <div>
-            <h1 className="text-[28px] font-bold text-[var(--black)]">Nomination Report</h1>
-            <p className="text-base text-[var(--dark-grey)]">Generate reports and view committee scoring summaries with full visibility</p>
+            <h1 className="text-[28px] font-bold text-[var(--black)]">
+              Nomination Report
+            </h1>
+            <p className="text-base text-[var(--dark-grey)]">
+              Generate reports and view committee scoring summaries with full
+              visibility
+            </p>
           </div>
           <Button size="sm" variant="secondary">
             <div className="px-5 py-1">Back to Dashboard</div>
@@ -225,14 +362,25 @@ export default function Page() {
 
         {/* Content */}
         <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
-          <h2 className="text-[18px] font-bold text-gray-900 mb-6">Committee Scoring Summary</h2>
+          <h2 className="text-[18px] font-bold text-gray-900 mb-6">
+            Committee Scoring Summary
+          </h2>
 
-          <SearchBar value={searchQuery} onChange={(val: string) => setSearchQuery(val)} placeholder="Search by nominee name" />
+          <SearchBar
+            value={searchQuery}
+            onChange={(val: string) => setSearchQuery(val)}
+            placeholder="Search by nominee name"
+          />
 
           <div className="mt-4 flex flex-col w-full relative">
             {hasResults ? (
               // FIX 3: Update prop names here
-              <NominationReportTable columns={columns} data={filteredData} onDownloadAction={handleDownload} onViewAction={handleView} />
+              <NominationReportTable
+                columns={columns}
+                data={filteredData}
+                onDownloadAction={handleDownload}
+                onViewAction={handleView}
+              />
             ) : (
               <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
                 <FolderX size={100} className="mb-4 opacity-70" />
@@ -243,10 +391,12 @@ export default function Page() {
         </div>
 
         <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm mt-10 px-6 py-6 flex flex-col relative content-area">
-          <h2 className="text-[18px] font-bold text-gray-900 mb-6">Gawad Tsanselor Final Report</h2>
+          <h2 className="text-[18px] font-bold text-gray-900 mb-6">
+            Gawad Tsanselor Final Report
+          </h2>
         </div>
       </Section>
-    )
+    );
   }
 
   return (
@@ -254,8 +404,13 @@ export default function Page() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">Nomination Report</h1>
-          <p className="text-base text-[var(--dark-grey)]">Generate reports and view committee scoring summaries with full visibility</p>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Nomination Report
+          </h1>
+          <p className="text-base text-[var(--dark-grey)]">
+            Generate reports and view committee scoring summaries with full
+            visibility
+          </p>
         </div>
         <Button size="sm" variant="secondary">
           <div className="px-5 py-1">Back to Dashboard</div>
@@ -264,14 +419,25 @@ export default function Page() {
 
       {/* Content */}
       <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm px-6 py-6 flex flex-col relative content-area">
-        <h2 className="text-[18px] font-bold text-gray-900 mb-6">Committee Scoring Summary</h2>
+        <h2 className="text-[18px] font-bold text-gray-900 mb-6">
+          Committee Scoring Summary
+        </h2>
 
-        <SearchBar value={searchQuery} onChange={(val: string) => setSearchQuery(val)} placeholder="Search by nominee name" />
+        <SearchBar
+          value={searchQuery}
+          onChange={(val: string) => setSearchQuery(val)}
+          placeholder="Search by nominee name"
+        />
 
         <div className="mt-4 flex flex-col w-full relative">
           {hasResults ? (
             // FIX 4: Update prop names here
-            <NominationReportTable columns={columns} data={filteredData} onDownloadAction={handleDownload} onViewAction={handleView} />
+            <NominationReportTable
+              columns={columns}
+              data={filteredData}
+              onDownloadAction={handleDownload}
+              onViewAction={handleView}
+            />
           ) : (
             <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
               <FolderX size={100} className="mb-4 opacity-70" />
@@ -282,20 +448,31 @@ export default function Page() {
       </div>
 
       <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm mt-10 px-6 py-6 flex flex-col relative content-area">
-        <h2 className="text-[18px] font-bold text-gray-900 mb-6">Gawad Tsanselor Final Report</h2>
+        <h2 className="text-[18px] font-bold text-gray-900 mb-6">
+          Gawad Tsanselor Final Report
+        </h2>
 
         {/* SUMMARY BAR - uses the SAME reportStatus as above */}
-        <div className={`w-full ${bgColor} rounded-sm min-h-[10vh] py-4 px-4 mb-2 relative pr-24`}>
+        <div
+          className={`w-full ${bgColor} rounded-sm min-h-[10vh] py-4 px-4 mb-2 relative pr-24`}
+        >
           <div className="mb-2">
-            <h3 className="text-md font-semibold text-gray-900">Evaluation Status</h3>
+            <h3 className="text-md font-semibold text-gray-900">
+              Evaluation Status
+            </h3>
           </div>
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-            <PortalStatusBadge variant="report" totalMembers={totalCapacity} submittedCount={totalSubmitted} />
+            <PortalStatusBadge
+              variant="report"
+              totalMembers={totalCapacity}
+              submittedCount={totalSubmitted}
+            />
           </div>
 
           {/* status text */}
           <p className="text-sm text-[var(--dark-grey)]">
-            {reportStatus === "NOT STARTED" && "No committee reviews submitted yet"}
+            {reportStatus === "NOT STARTED" &&
+              "No committee reviews submitted yet"}
             {reportStatus === "ON GOING" &&
               `${completedNomineeCount} of ${data.length} nominees reviewed`}
             {reportStatus === "COMPLETED" && "All committee reviews completed"}
@@ -303,10 +480,16 @@ export default function Page() {
         </div>
 
         {/* Generate button */}
-        <Button size="sm" variant={buttonDisabled ? "disabled" : "primary"} disabled={buttonDisabled} className="w-full">
+        <Button
+          size="sm"
+          variant={buttonDisabled ? "disabled" : "primary"}
+          disabled={buttonDisabled}
+          className="w-full"
+          onClick={generatePDF}
+        >
           <div className="px-4 py-2">Generate Report</div>
         </Button>
       </div>
     </Section>
-  )
+  );
 }
