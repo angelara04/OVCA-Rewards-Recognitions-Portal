@@ -18,7 +18,7 @@ import {
   deleteRejectedUser,
   promoteUserRole,
   removeUserRole,
-} from "../actions";
+} from "./actions";
 
 type TabKey = "all" | "pending" | "approved" | "rejected";
 

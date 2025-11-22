@@ -7,7 +7,7 @@ import {
   getDeniedRegistrations,
   approveRegistration,
   denyRegistration,
-} from '@/app/hr/actions'
+} from '@/app/hr/employee-registration/actions'
 
 export default function RegistryApprovalPage() {
   const [pending, setPending] = useState<any[]>([])
