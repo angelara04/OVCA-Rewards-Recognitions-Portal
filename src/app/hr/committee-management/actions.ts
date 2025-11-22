@@ -7,6 +7,8 @@ export interface Profile {
   name: string
   email?: string
   role: 'committee' | 'nominator'
+  department?: string
+  created_at?: string
 }
 
 /**
@@ -17,7 +19,7 @@ export async function getCommitteeMembers(): Promise<Profile[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, email, role')
+    .select('id, name, email, role, department, created_at')
     .eq('role', 'committee')
     .order('name', { ascending: true })
 
@@ -26,14 +28,24 @@ export async function getCommitteeMembers(): Promise<Profile[]> {
     return []
   }
 
-  return data || []
+  return (data || []).map(profile => ({
+    ...profile,
+    created_at: profile.created_at
+      ? new Date(profile.created_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      : ''
+  }))
 }
+
 
 export async function getNominators(): Promise<Profile[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, email, role')
+    .select('id, name, email, role, department, created_at')
     .eq('role', 'nominator')
     .order('name', { ascending: true })
 
@@ -42,8 +54,18 @@ export async function getNominators(): Promise<Profile[]> {
     return []
   }
 
-  return data || []
+  return (data || []).map(profile => ({
+    ...profile,
+    created_at: profile.created_at
+      ? new Date(profile.created_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      : ''
+  }))
 }
+
 
 export async function promoteToCommittee(userId: string) {
   const supabase = await createClient()
