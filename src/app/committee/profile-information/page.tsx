@@ -47,15 +47,6 @@ export default function ProfilePage() {
 
             <h2 className="text-base font-semibold mt-4">{profile.name}</h2>
             <Role role={profile.role} />
-
-            <div className="flex flex-col gap-3 mt-6 w-full max-w-xs">
-              <Button size="sm" variant="secondary" className="w-full py-2">
-                Change Photo
-              </Button>
-              <Button size="sm" variant="maroon" className="w-full py-2">
-                Edit Profile
-              </Button>
-            </div>
           </div>
 
           {/* Right Column */}

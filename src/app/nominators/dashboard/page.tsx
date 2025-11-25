@@ -74,21 +74,21 @@ export default function DashboardPage() {
       nomineename: "Pedro Santos",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
     {
       nomineeid: "E012501133",
       nomineename: "Liza Gomez",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
     {
       nomineeid: "E012501134",
       nomineename: "Tomas Villanueva",
       category: "Office of the Vice Chancellor",
       datesubmitted: "10/12/2025",
-      status: "Not Started",
+      status: "Completed",
     },
   ];
 
@@ -144,6 +144,59 @@ export default function DashboardPage() {
     setOpenDropdownIndex((prev) => (prev === index ? null : index));
   }
 
+  const dropdownItems = useMemo(() => {
+    if (openDropdownIndex === null) return [];
+    const item = filteredData[openDropdownIndex];
+    if (!item) return [];
+
+    if (item.status === "Completed") {
+      return [
+        {
+          label: "View",
+          color: "text-black",
+          onClickAction: () => {
+            console.log("View", item);
+            setOpenDropdownIndex(null);
+          },
+        },
+      ];
+    }
+
+    if (item.status === "In Progress") {
+      return [
+        {
+          label: "Continue",
+          color: "text-black",
+          onClickAction: () => {
+            console.log("Continue", item);
+            setOpenDropdownIndex(null);
+          },
+        },
+        {
+          label: "Delete",
+          color: "text-red-600",
+          onClickAction: () => {
+            console.log("Delete", item);
+            // implement delete confirmation/handler here
+            setOpenDropdownIndex(null);
+          },
+        },
+      ];
+    }
+
+    // fallback for other statuses: show Continue
+    return [
+      {
+        label: "Continue",
+        color: "text-black",
+        onClickAction: () => {
+          console.log("Continue", item);
+          setOpenDropdownIndex(null);
+        },
+      },
+    ];
+  }, [openDropdownIndex, filteredData]);
+
   return (
     <Section
       width="w-full"
@@ -168,7 +221,6 @@ export default function DashboardPage() {
 
       {/* Cards */}
       <div className="w-full flex flex-col gap-2 sm:flex-row mb-5">
-        <Card description="Not Started" number={3} />
         <Card description="In Progress" number={4} />
         <Card description="Completed" number={3} />
       </div>
@@ -222,19 +274,7 @@ export default function DashboardPage() {
                 <DropdownMenu
                   position={dropdownPosition}
                   onCloseAction={() => setOpenDropdownIndex(null)}
-                  items={[
-                    {
-                      label: "Review",
-                      color: "text-black",
-                      onClickAction: () => {
-                        console.log(
-                          "Evaluate",
-                          filteredData[openDropdownIndex!]
-                        );
-                        setOpenDropdownIndex(null);
-                      },
-                    },
-                  ]}
+                  items={dropdownItems}
                 />
               )}
           </div>
