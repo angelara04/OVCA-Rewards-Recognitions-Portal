@@ -7,6 +7,8 @@ interface InputFieldProps {
   width?: string;
   height?: string;
   type?: string;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 
 export default function InputField({
