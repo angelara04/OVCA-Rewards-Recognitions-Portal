@@ -2,6 +2,7 @@
 
 import React from "react";
 import { X, Download, FileText } from "lucide-react";
+import Button from "@/components/button";
 
 interface FileItem {
   name: string;
@@ -45,7 +46,7 @@ export default function UploadedFilesModal({
               className="flex justify-between items-center border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition"
             >
               <div className="flex items-center gap-3">
-                <FileText className="text-gray-600 w-5 h-5" />
+                <FileText className="text-[var-(--black)] w-5 h-5" />
                 <div>
                   <p className="font-medium text-sm text-gray-800">
                     {file.name}
@@ -53,9 +54,16 @@ export default function UploadedFilesModal({
                   <p className="text-xs text-gray-500">{file.size}</p>
                 </div>
               </div>
-              <button className="text-gray-600 hover:text-gray-800 transition">
-                <Download className="w-5 h-5" />
-              </button>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" size="sm" className="px-4">
+                  View
+                </Button>
+                {/* Download button */}
+                <button className="text-[var-(--black)] hover:text-gray-800 transition">
+                  <Download className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
