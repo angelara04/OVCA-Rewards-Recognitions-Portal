@@ -81,36 +81,35 @@ export async function approveRegistration(id: string) {
     .maybeSingle()
 
   if (!reg) {
-    console.warn('approveRegistration: registry record not found', id)
     return { ok: false, message: 'not found' }
   }
 
-// Insert or update profile safely
-const { error: profileError } = await supabase
-  .from('profiles')
-  .upsert(
-    {
-      id: reg.user_id,
-      email: reg.email,
-      name: reg.name,
-      role: 'nominator',
-    },
-    { onConflict: 'id' } // ensures it updates if already exists
-  )
+  const formData = reg.form_data as any
+  const department = formData?.department || null
 
-if (profileError) {
-  console.error('Error inserting/upserting profile:', profileError)
-  // don't stop the approval even if this fails
-}
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: reg.user_id,
+        email: reg.email,
+        name: reg.name,
+        role: 'nominator',
+        department: department,
+      },
+      { onConflict: 'id' }
+    )
 
-const { error: updateError } = await supabase
-  .from('registry')
-  .update({ status: 'approved', updated_at: new Date().toISOString() })
-  .eq('id', id)
+  if (profileError) {
+    console.error(profileError)
+  }
 
+  const { error: updateError } = await supabase
+    .from('registry')
+    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .eq('id', id)
 
   if (updateError) {
-    console.error('Error updating registry status:', updateError)
     return { ok: false, message: 'update failed', error: updateError }
   }
 
