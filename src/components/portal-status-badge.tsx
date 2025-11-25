@@ -1,35 +1,21 @@
 import React, { useEffect, useState } from 'react';
-
-//IMPORTANT MODIFICATION FOR FUNCTIONALITIES
-//THIS CODE NEEDS TO BE MODIFIED
-// Need to modify the Logic, Published if there is no submissions yet it can allow user to edit the Dates
-// However if there are submissions already it should be Open and cannot be edited
+import clsx from 'clsx';
 
 interface PortalStatusBadgeProps {
   variant: 'period' | 'report';
-  startDate?: string | null;
-  endDate?: string | null;
-  hasSubmissions?: boolean; // for period variant
-  totalMembers?: number; // for report variant
-  submittedCount?: number; // for report variant
-  onStateChange?: (state: string) => void;
+  status?: 'UNSCHEDULED' | 'OPEN' | 'PUBLISHED' | 'CLOSED'; 
+  totalMembers?: number; 
+  submittedCount?: number; 
   sizeClass?: string;
 }
 
 const PortalStatusBadge: React.FC<PortalStatusBadgeProps> = ({
   variant,
-  startDate,
-  endDate,
-  hasSubmissions = false,
+  status: statusProp, 
   totalMembers = 0,
   submittedCount = 0,
-  onStateChange,
   sizeClass = 'w-32 h-8',
 }) => {
-  const today = new Date();
-  const start = startDate ? new Date(startDate) : null;
-  const end = endDate ? new Date(endDate) : null;
-
   const [status, setStatus] = useState('');
   const [style, setStyle] = useState({
     border: '',
@@ -41,28 +27,37 @@ const PortalStatusBadge: React.FC<PortalStatusBadgeProps> = ({
     let newStatus = '';
     let border = '';
     let text = '';
-    let bg = '';
+    let bg = 'bg-[var(--settings-grey)]'; // FIX 1: Set default background to GREY
 
     if (variant === 'period') {
-      // Period logic
-      if (!start || !end) {
-        newStatus = 'UNSCHEDULED';
-        border = 'border-[var(--dark-yellow)]';
-        text = 'text-[var(--dark-yellow)]';
-        bg = 'bg-[var(--settings-grey)]';
-      } else if (!hasSubmissions) {
-        newStatus = 'PUBLISHED';
-        border = 'border-[var(--dark-purple)]';
-        text = 'text-[var(--dark-purple)]';
-        bg = 'bg-[var(--settings-grey)]';
-      } else {
-        newStatus = 'OPEN';
-        border = 'border-[var(--forest-green)]';
-        text = 'text-[var(--forest-green)]';
-        bg = 'bg-[var(--settings-grey)]';
+      newStatus = statusProp || 'UNSCHEDULED';
+      
+      switch (newStatus) {
+        case 'UNSCHEDULED':
+          border = 'border-[var(--dark-yellow)]';
+          text = 'text-[var(--dark-yellow)]';
+          break;
+        case 'OPEN':
+          // FIX 2: Changed to dark green scheme
+          border = 'border-[var(--forest-green)]'; 
+          text = 'text-[var(--forest-green)]';
+          break;
+        case 'PUBLISHED':
+          // PUBLISHED state is for submissions existing (disabled inputs)
+          border = 'border-[var(--dark-purple)]'; 
+          text = 'text-[var(--dark-purple)]';
+          break;
+        case 'CLOSED':
+          border = 'border-[var(--maroon)]'; 
+          text = 'text-[var(--maroon)]';
+          break;
+        default:
+          border = 'border-[var(--dark-yellow)]';
+          text = 'text-[var(--dark-yellow)]';
+          break;
       }
     } else if (variant === 'report') {
-      // Report logic
+      // Report logic remains unchanged
       if (submittedCount === 0) {
         newStatus = 'NOT STARTED';
         border = 'border-[var(--maroon)]';
@@ -83,12 +78,16 @@ const PortalStatusBadge: React.FC<PortalStatusBadgeProps> = ({
 
     setStatus(newStatus);
     setStyle({ border, text, bg });
-    onStateChange && onStateChange(newStatus);
-  }, [variant, startDate, endDate, hasSubmissions, totalMembers, submittedCount]);
+  }, [variant, statusProp, totalMembers, submittedCount]);
 
   return (
     <div
-      className={`inline-flex items-center justify-center gap-2 ${sizeClass} rounded-full ${style.bg} border-2 ${style.border} ${style.text} px-2 py-1 select-none`}
+      className={clsx(
+        `inline-flex items-center justify-center gap-2 ${sizeClass} rounded-full border-2 px-2 py-1 select-none`,
+        style.bg,
+        style.border,
+        style.text
+      )}
       role="status"
       aria-label={`Portal status: ${status}`}
     >
