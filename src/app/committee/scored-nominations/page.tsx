@@ -165,7 +165,7 @@ export default function Page() {
               onCloseAction={() => setOpenDropdownIndex(null)}
               items={[
                 {
-                  label: "Evaluate",
+                  label: "View",
                   color: "text-black",
                   onClickAction: () => {
                     // replace with navigation/handler to evaluation page

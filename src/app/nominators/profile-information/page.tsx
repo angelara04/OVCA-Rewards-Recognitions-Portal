@@ -35,7 +35,7 @@ export default function ProfilePage() {
         {/* Profile Columns */}
         <div className="flex flex-col md:flex-row gap-8 w-full">
           {/* Left Column */}
-          <div className="flex flex-col items-center md:w-1/3 w-full">
+          <div className="flex flex-col items-center md:w-1/3 w-full ">
             <div className="relative">
               <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-4xl sm:text-5xl font-bold">
                 JD
@@ -47,15 +47,6 @@ export default function ProfilePage() {
 
             <h2 className="text-base font-semibold mt-4">{profile.name}</h2>
             <Role role={profile.role} />
-
-            <div className="flex flex-col gap-3 mt-6 w-full max-w-xs">
-              <Button size="sm" variant="secondary" className="w-full py-2">
-                Change Photo
-              </Button>
-              <Button size="sm" variant="maroon" className="w-full py-2">
-                Edit Profile
-              </Button>
-            </div>
           </div>
 
           {/* Right Column */}
