@@ -5,7 +5,7 @@ import {
   getPendingRegistrations,
   getApprovedRegistrations,
   getDeniedRegistrations,
-} from '@/app/hr/actions'
+} from '@/app/hr/employee-registration/actions'
 
 export interface Employee {
   id: string
