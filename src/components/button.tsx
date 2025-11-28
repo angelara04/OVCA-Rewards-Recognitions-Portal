@@ -10,7 +10,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     | "submit"
     | "reset"
     | "disabled"
-    | "maroon";
+    | "maroon"
+    | "view"; // <-- added "view"
   size?: "sm" | "md" | "lg" | "xs";
 }
 

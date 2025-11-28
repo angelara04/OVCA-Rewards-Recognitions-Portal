@@ -3,40 +3,46 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 
 interface ConfirmModalProps {
-  action: "approve" | "reject" | "delete"; // added "delete"
+  action: "approve" | "reject" | "delete" | "submitNomination"; // added submitNomination
   onCancelAction: () => void;
   onConfirmAction: () => void;
 }
+
 // ConfirmModal component
 export default function ConfirmModal({ action, onCancelAction, onConfirmAction }: ConfirmModalProps) {
   // Decide color and title based on action
-  // colorClass for icon
   const colorClass =
     action === "approve" ? "text-[var(--forest-green)]" :
-    action === "reject" || action === "delete" ? "text-[var(--maroon)]" : "";
-// title, description, buttonLabel, buttonColorClass based on action
+    action === "reject" || action === "delete" ? "text-[var(--maroon)]" :
+    action === "submitNomination" ? "text-[var(--forest-green)]" : "";
+
   const title =
     action === "approve" ? "Approve Registration" :
     action === "reject" ? "Reject Registration" :
-    "Delete Rejected User";
+    action === "delete" ? "Delete Rejected User" :
+    action === "submitNomination" ? "Submit Nomination" : "";
 
   const description =
     action === "approve"
       ? "Are you sure you want to approve the user's registration? This action cannot be undone."
       : action === "reject"
       ? "Are you sure you want to reject the user's registration? This action cannot be undone."
-      : "Are you sure you want to permanently delete this rejected user? This action cannot be undone.";
+      : action === "delete"
+      ? "Are you sure you want to permanently delete this rejected user? This action cannot be undone."
+      : action === "submitNomination"
+      ? "Are you sure you want to submit? You cannot edit after submission."
+      : "";
 
   const buttonLabel =
     action === "approve" ? "Approve" :
     action === "reject" ? "Reject" :
-    "Delete";
+    action === "delete" ? "Delete" :
+    action === "submitNomination" ? "Submit" : "";
 
   const buttonColorClass =
-    action === "approve" ? "bg-[var(--forest-green)] hover:bg-green-700" :
-    "bg-[var(--maroon)] hover:bg-red-700";
+    action === "approve" || action === "submitNomination" ? "bg-[var(--forest-green)] hover:bg-green-700" :
+    "bg-[var(--maroon)] hover:bg-red-700"; // keep submitNomination same as maroon
 
-    // Render modal
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-[100]">
       <div className="bg-white rounded-xl shadow-xl w-[442px] h-[343px] text-center relative p-6 flex flex-col justify-between">
