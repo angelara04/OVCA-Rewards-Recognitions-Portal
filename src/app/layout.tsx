@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import SessionTimeout from "@/components/session-timeout";
 
 // ✅ Load Inter font from Google via next/font
 const inter = Inter({
@@ -25,6 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased h-full`}>
+        <SessionTimeout />
         {children}
       </body>
     </html>
