@@ -8,42 +8,60 @@ interface ConfirmModalProps {
   onConfirmAction: () => void;
 }
 // ConfirmModal component
-export default function ConfirmModal({ action, onCancelAction, onConfirmAction }: ConfirmModalProps) {
+export default function ConfirmModal({
+  action,
+  onCancelAction,
+  onConfirmAction,
+}: ConfirmModalProps) {
   // Decide color and title based on action
   // colorClass for icon
   const colorClass =
-    action === "approve" ? "text-[var(--forest-green)]" :
-    action === "reject" || action === "delete" ? "text-[var(--maroon)]" : "";
-// title, description, buttonLabel, buttonColorClass based on action
+    action === "approve"
+      ? "text-[var(--forest-green)]"
+      : action === "reject" || action === "delete"
+      ? "text-[var(--maroon)]"
+      : "";
+  // title, description, buttonLabel, buttonColorClass based on action
   const title =
-    action === "approve" ? "Approve Registration" :
-    action === "reject" ? "Reject Registration" :
-    "Delete Rejected User";
+    action === "approve"
+      ? "Approve Registration"
+      : action === "reject"
+      ? "Reject Registration"
+      : "Delete Nomination";
 
   const description =
     action === "approve"
       ? "Are you sure you want to approve the user's registration? This action cannot be undone."
       : action === "reject"
       ? "Are you sure you want to reject the user's registration? This action cannot be undone."
-      : "Are you sure you want to permanently delete this rejected user? This action cannot be undone.";
+      : "Are you sure you want to permanently delete this nomination? This action cannot be undone.";
 
   const buttonLabel =
-    action === "approve" ? "Approve" :
-    action === "reject" ? "Reject" :
-    "Delete";
+    action === "approve"
+      ? "Approve"
+      : action === "reject"
+      ? "Reject"
+      : "Delete";
 
   const buttonColorClass =
-    action === "approve" ? "bg-[var(--forest-green)] hover:bg-green-700" :
-    "bg-[var(--maroon)] hover:bg-red-700";
+    action === "approve"
+      ? "bg-[var(--forest-green)] hover:bg-green-700"
+      : "bg-[var(--maroon)] hover:bg-[var(--maroon)]";
 
-    // Render modal
+  // Render modal
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-[100]">
       <div className="bg-white rounded-xl shadow-xl w-[442px] h-[343px] text-center relative p-6 flex flex-col justify-between">
-        <button onClick={onCancelAction} className="absolute top-4 right-9 text-gray-800 text-3xl">
+        <button
+          onClick={onCancelAction}
+          className="absolute top-4 right-9 text-gray-800 text-3xl"
+        >
           ×
         </button>
-        <AlertTriangle size={50} className={`mx-auto mt-4 mb-4 ${colorClass}`} />
+        <AlertTriangle
+          size={50}
+          className={`mx-auto mt-4 mb-4 ${colorClass}`}
+        />
         <h2 className="text-2xl font-bold text-gray-800 mb-4">{title}</h2>
         <p className="text-lg text-gray-700 mb-6 px-6">{description}</p>
         <div className="flex justify-center space-x-10 mb-4">

@@ -1,12 +1,15 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import Section from "@/components/section";
-import Card from "@/components/card";
+
 import Button from "@/components/button";
 import Table, { Column } from "@/components/table/committee-table";
 import { MoreHorizontal, FolderX } from "lucide-react";
 import { SearchBar } from "@/components/search-bar";
 import DropdownMenu from "@/components/dropdown-menu";
+import { getMyNominations, deleteNomination } from "../action";
+import AlertBanner from "@/components/alertBanner";
+import ConfirmModal from "@/components/confirm-modal";
 
 export default function MyNominationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,89 +21,144 @@ export default function MyNominationsPage() {
     left: number;
   } | null>(null);
 
-  // sample rows
-  const nominationsData = [
-    {
-      nomineeid: "E012501125",
-      nomineename: "Maria Del Santos",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "In Progress",
-    },
-    {
-      nomineeid: "E012501126",
-      nomineename: "Juan Dela Cruz",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-    {
-      nomineeid: "E012501127",
-      nomineename: "Ana Reyes",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-    {
-      nomineeid: "E012501128",
-      nomineename: "Luis Mercado",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-    {
-      nomineeid: "E012501129",
-      nomineename: "Clara Santos",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "In Progress",
-    },
-    {
-      nomineeid: "E012501130",
-      nomineename: "Ramon Lopez",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "In Progress",
-    },
-    {
-      nomineeid: "E012501131",
-      nomineename: "Maya Cruz",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "In Progress",
-    },
-    {
-      nomineeid: "E012501132",
-      nomineename: "Pedro Santos",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-    {
-      nomineeid: "E012501133",
-      nomineename: "Liza Gomez",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-    {
-      nomineeid: "E012501134",
-      nomineename: "Tomas Villanueva",
-      category: "Office of the Vice Chancellor",
-      datesubmitted: "10/12/2025",
-      status: "Completed",
-    },
-  ];
+  // fetched nominations from server
+  const [nominations, setNominations] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [banner, setBanner] = useState<{
+    title?: string;
+    message?: string;
+    variant?: "error" | "warning" | "success";
+    duration?: number;
+  } | null>(null);
+
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await getMyNominations();
+
+        const mapped = (data || []).map((n: any) => ({
+          // map backend nomination fields to the table-friendly shape
+          id: n.id,
+          nomineename: n.nominee_name ?? "",
+          category: n.category ?? "",
+          datesubmitted: n.created_at
+            ? new Date(n.created_at).toLocaleDateString()
+            : "",
+          status:
+            n.status === "completed"
+              ? "Completed"
+              : n.status === "in_progress"
+              ? "In Progress"
+              : n.status || "",
+        }));
+
+        if (mounted) setNominations(mapped);
+      } catch (err) {
+        console.error("Failed to load nominations:", err);
+        if (mounted) setNominations([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function reload() {
+    setLoading(true);
+    try {
+      const data = await getMyNominations();
+      const mapped = (data || []).map((n: any) => ({
+        id: n.id,
+        nomineename: n.nominee_name ?? "",
+        category: n.category ?? "",
+        datesubmitted: n.created_at
+          ? new Date(n.created_at).toLocaleDateString()
+          : "",
+        status:
+          n.status === "completed"
+            ? "Completed"
+            : n.status === "in_progress"
+            ? "In Progress"
+            : n.status || "",
+      }));
+      setNominations(mapped);
+    } catch (err) {
+      console.error("Failed to reload nominations:", err);
+      setNominations([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function promptDelete(id: string | null) {
+    if (!id) return;
+    setPendingDeleteId(id);
+    setBanner({
+      title: "Confirm Deletion",
+      message: "Do you want to delete this nomination? This cannot be undone.",
+      variant: "warning",
+      duration: 600000,
+    });
+  }
+
+  async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    setLoading(true);
+    try {
+      const res = await deleteNomination(pendingDeleteId);
+      if (res?.success) {
+        setBanner({
+          title: "Deleted",
+          message: "Draft deleted.",
+          variant: "success",
+          duration: 4000,
+        });
+        await reload();
+      } else {
+        setBanner({
+          title: "Delete Failed",
+          message: res?.message || "Delete failed",
+          variant: "error",
+          duration: 4000,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setBanner({
+        title: "Delete Failed",
+        message: "Delete failed",
+        variant: "error",
+        duration: 4000,
+      });
+    } finally {
+      setPendingDeleteId(null);
+      setLoading(false);
+    }
+  }
+
+  function cancelDelete() {
+    setPendingDeleteId(null);
+    setBanner(null);
+  }
 
   const filteredData = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return nominationsData;
-    return nominationsData.filter((item) =>
+    if (!q) return nominations;
+    return nominations.filter((item) =>
       Object.values(item).join(" ").toLowerCase().includes(q)
     );
-  }, [searchQuery, nominationsData]);
+  }, [searchQuery, nominations]);
 
-  const hasResults = filteredData.length > 0;
+  const hasResults = filteredData.length > 0 && !loading;
 
   // Table columns - adapted for My Nominations (hide Nominee ID if not needed)
   const columns: Column[] = [
@@ -168,7 +226,9 @@ export default function MyNominationsPage() {
           label: "Continue",
           color: "text-black",
           onClickAction: () => {
-            console.log("Continue", item);
+            const nid = item?.id || item?.nomination_id || item?.nomineeid;
+            if (nid)
+              window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
             setOpenDropdownIndex(null);
           },
         },
@@ -176,8 +236,16 @@ export default function MyNominationsPage() {
           label: "Delete",
           color: "text-red-600",
           onClickAction: () => {
-            console.log("Delete", item);
-            // implement delete confirmation/handler here
+            setPendingDeleteId(
+              item?.id || item?.nomination_id || item?.nomineeid || null
+            );
+            setBanner({
+              title: "Confirm Deletion",
+              message:
+                "Do you want to delete this nomination? This cannot be undone.",
+              variant: "warning",
+              duration: 600000,
+            });
             setOpenDropdownIndex(null);
           },
         },
@@ -209,10 +277,40 @@ export default function MyNominationsPage() {
             View and manage all your nominations.
           </p>
         </div>
-        <Button size="sm" variant="primary">
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() =>
+            (window.location.href = "/nominators/nomination-forms")
+          }
+        >
           <div className="px-5 py-1">New Nomination</div>
         </Button>
       </div>
+
+      {/* Confirmation modal (warning) or banner (success/error) */}
+      {pendingDeleteId && (
+        <ConfirmModal
+          action="delete"
+          onCancelAction={cancelDelete}
+          onConfirmAction={confirmDelete}
+        />
+      )}
+
+      {banner && (!pendingDeleteId || banner.variant !== "warning") && (
+        <div className="max-w-6xl mx-auto mb-4">
+          <AlertBanner
+            title={banner.title}
+            message={banner.message}
+            variant={banner.variant as any}
+            duration={banner.duration}
+            onClose={() => {
+              setBanner(null);
+              setPendingDeleteId(null);
+            }}
+          />
+        </div>
+      )}
 
       {/* Search */}
       <SearchBar
@@ -222,8 +320,13 @@ export default function MyNominationsPage() {
       />
 
       {/* Table */}
-      <div className="table-container mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
-        {hasResults ? (
+      <div className="table-container mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative justify-center">
+        {loading ? (
+          <div className="flex items-center justify-center p-4 flex-col gap-2">
+            <div className="w-8 h-8 border-4 border-gray-300 border-t-4 border-t-[var(--maroon)] rounded-full animate-spin"></div>
+            <span className="text-[var(--dark-grey)]">Loading...</span>
+          </div>
+        ) : hasResults ? (
           <div className="w-full overflow-auto">
             <Table
               columns={columns}
