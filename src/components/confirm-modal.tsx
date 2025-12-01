@@ -3,50 +3,66 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 
 interface ConfirmModalProps {
-  action: "approve" | "reject" | "delete"; // added "delete"
+  action: "approve" | "reject" | "delete" | "submitNomination";
   onCancelAction: () => void;
   onConfirmAction: () => void;
 }
+
 // ConfirmModal component
 export default function ConfirmModal({
   action,
   onCancelAction,
   onConfirmAction,
 }: ConfirmModalProps) {
-  // Decide color and title based on action
-  // colorClass for icon
+  // Decide color based on action
   const colorClass =
-    action === "approve"
+    action === "approve" || action === "submitNomination"
       ? "text-[var(--forest-green)]"
       : action === "reject" || action === "delete"
       ? "text-[var(--maroon)]"
       : "";
-  // title, description, buttonLabel, buttonColorClass based on action
+
+  // Decide title based on action
   const title =
     action === "approve"
       ? "Approve Registration"
       : action === "reject"
       ? "Reject Registration"
-      : "Delete Nomination";
+      : action === "delete"
+      ? "Delete Nomination"
+      : action === "submitNomination"
+      ? "Submit Nomination"
+      : "";
 
+  // Decide description based on action
   const description =
     action === "approve"
       ? "Are you sure you want to approve the user's registration? This action cannot be undone."
       : action === "reject"
       ? "Are you sure you want to reject the user's registration? This action cannot be undone."
-      : "Are you sure you want to permanently delete this nomination? This action cannot be undone.";
+      : action === "delete"
+      ? "Are you sure you want to permanently delete this nomination? This action cannot be undone."
+      : action === "submitNomination"
+      ? "Are you sure you want to submit? You cannot edit after submission."
+      : "";
 
+  // Decide button label
   const buttonLabel =
     action === "approve"
       ? "Approve"
       : action === "reject"
       ? "Reject"
-      : "Delete";
+      : action === "delete"
+      ? "Delete"
+      : action === "submitNomination"
+      ? "Submit"
+      : "";
 
+  // Decide button color
   const buttonColorClass =
-    action === "approve"
+    action === "approve" || action === "submitNomination"
       ? "bg-[var(--forest-green)] hover:bg-green-700"
-      : "bg-[var(--maroon)] hover:bg-[var(--maroon)]";
+      : "bg-[var(--maroon)] hover:bg-red-700";
 
   // Render modal
   return (
