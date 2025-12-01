@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"
 
-// Define the shape of the data we want to return to the frontend
+// Define the shape of the data
 export type CommitteeNomination = {
   id: string
   nominee_name: string
@@ -10,71 +10,39 @@ export type CommitteeNomination = {
   position: string
   unit: string
   submitted_at: string
-  my_status: "Not Started" | "In Progress" | "Completed" // Computed status
-  global_review_count: number // How many people finished reviewing
-  my_review_id?: string // ID of the draft if it exists
+  my_status: "Not Started" | "In Progress" | "Completed"
+  global_review_count: number
+  my_review_id?: string
+  evaluation_result?: string // New field
 }
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
   const supabase = await createClient()
-  
-  // 1. Get the current Committee Member's ID
   const { data: authData } = await supabase.auth.getUser()
   if (!authData?.user) return []
   const myUserId = authData.user.id
 
-  // 2. Fetch all "Completed" nominations (Submitted by nominators)
-  // We also fetch the 'reviews' to see who has worked on them
   const { data: nominations, error } = await supabase
     .from("nominations")
     .select(`
-      id,
-      nominee_name,
-      category,
-      position,
-      unit,
-      created_at,
-      status,
-      reviews (
-        id,
-        reviewer_id,
-        status
-      )
+      id, nominee_name, category, position, unit, created_at, status, evaluation_result,
+      reviews ( id, reviewer_id, status )
     `)
-    .eq("status", "completed") // Only show nominations that are officially submitted
+    .eq("status", "completed")
     .order("created_at", { ascending: false })
 
-  if (error || !nominations) {
-    console.error("Error fetching nominations:", error)
-    return []
-  }
+  if (error || !nominations) return []
 
-  // 3. Transform the data to add "My Status" logic
-  const dashboardData: CommitteeNomination[] = nominations.map((nom) => {
+  return nominations.map((nom) => {
     const allReviews = nom.reviews || []
-
-    // A. Count how many TOTAL reviews are marked 'completed' (The Global Count)
     const globalCompletedCount = allReviews.filter((r: any) => r.status === "completed").length
-
-    // B. Find MY specific review record (if I started one)
     const myReview = allReviews.find((r: any) => r.reviewer_id === myUserId)
 
-    // C. Determine the Status Label
     let derivedStatus: "Not Started" | "In Progress" | "Completed" = "Not Started"
 
-    if (myReview?.status === "completed") {
-      // I have personally finished this
-      derivedStatus = "Completed"
-    } else if (globalCompletedCount >= 3) {
-      // The "Rule of 3" is met. It is locked/closed for everyone.
-      derivedStatus = "Completed"
-    } else if (myReview) {
-      // I have a record, but it's not completed yet
-      derivedStatus = "In Progress"
-    } else {
-      // I have no record, and the global count is less than 3
-      derivedStatus = "Not Started"
-    }
+    if (myReview?.status === "completed") derivedStatus = "Completed"
+    else if (globalCompletedCount >= 3) derivedStatus = "Completed" // Locked
+    else if (myReview) derivedStatus = "In Progress"
 
     return {
       id: nom.id,
@@ -86,10 +54,9 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
       my_status: derivedStatus,
       global_review_count: globalCompletedCount,
       my_review_id: myReview?.id,
+      evaluation_result: nom.evaluation_result // Return the verdict if it exists
     }
   })
-
-  return dashboardData
 }
 
 export async function getReviewContext(nominationId: string) {
@@ -99,7 +66,7 @@ export async function getReviewContext(nominationId: string) {
 
   const userId = auth.user.id
 
-  // A. Fetch Nomination & Attachments
+  // Fetch Nomination
   const { data: nomination } = await supabase
     .from("nominations")
     .select(`*, attachments(*)`)
@@ -108,14 +75,14 @@ export async function getReviewContext(nominationId: string) {
 
   if (!nomination) return { error: "Nomination not found" }
 
-  // B. Fetch the correct Rubric based on Category
+  // Fetch Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
     .select("*")
     .eq("category", nomination.category)
     .single()
 
-  // C. Fetch MY existing review (if I started one)
+  // Fetch My Review
   const { data: myReview } = await supabase
     .from("reviews")
     .select("*")
@@ -123,8 +90,7 @@ export async function getReviewContext(nominationId: string) {
     .eq("reviewer_id", userId)
     .maybeSingle()
 
-  // D. Check Global Lock (Rule of 3)
-  // Count how many OTHER people have finished
+  // Check Global Lock
   const { count } = await supabase
     .from("reviews")
     .select("*", { count: "exact", head: true })
@@ -138,58 +104,95 @@ export async function getReviewContext(nominationId: string) {
     nomination,
     rubric,
     existingReview: myReview,
-    isLocked, // If true, user cannot submit new reviews
+    isLocked,
   }
 }
 
-// 2. Save or Submit the Review
+// --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user) return { success: false, message: "Unauthorized" }
 
   const nominationId = formData.get("nomination_id") as string
-  const action = formData.get("action") as string // 'save' or 'submit'
+  const action = formData.get("action") as string
   
-  // Parse the raw form data into a JSON object for the "scores" column
+  // Parse scores
   const rawData = Object.fromEntries(formData.entries())
-  
-  // Separate metadata from the actual scores
-  const recommendation = rawData.recommendation as string
   const comments = rawData.comments as string
   
-  // Filter out non-score fields to build the scores_json
   const scoresJson: Record<string, number> = {}
-  let totalScore = 0
+  let myTotalScore = 0
 
   Object.keys(rawData).forEach((key) => {
-    // If the key is one of our rubric question IDs (we assume anything else is metadata)
-    if (key !== "nomination_id" && key !== "action" && key !== "recommendation" && key !== "comments") {
+    if (!["nomination_id", "action", "comments", "recommendation"].includes(key)) {
       const score = Number(rawData[key]) || 0
       scoresJson[key] = score
-      totalScore += score
+      myTotalScore += score
     }
   })
 
   const status = action === "submit" ? "completed" : "in_progress"
 
-  // Upsert the review
+  // 1. Save the individual review
   const { error } = await supabase
     .from("reviews")
     .upsert({
       nomination_id: nominationId,
       reviewer_id: auth.user.id,
       scores_json: scoresJson,
-      total_score: totalScore,
-      recommendation,
+      total_score: myTotalScore,
       comments,
       status,
       updated_at: new Date().toISOString(),
     }, { onConflict: "nomination_id, reviewer_id" })
 
-  if (error) {
-    console.error("Save error:", error)
-    return { success: false, message: "Failed to save review" }
+  if (error) return { success: false, message: "Failed to save review" }
+
+  // 2. IF SUBMITTING: Check if we need to calculate the Final Verdict
+  if (action === "submit") {
+    
+    // Count how many finished reviews exist now
+    const { data: allReviews } = await supabase
+      .from("reviews")
+      .select("total_score")
+      .eq("nomination_id", nominationId)
+      .eq("status", "completed")
+
+    // If we hit the magic number 3
+    if (allReviews && allReviews.length >= 3) {
+      
+      // A. Calculate Average
+      const sumOfReviewers = allReviews.reduce((sum, r) => sum + (r.total_score || 0), 0)
+      const averageScore = sumOfReviewers / allReviews.length
+
+      // B. Get Max Possible Score from Rubric
+      // We need to fetch the nomination first to get the category
+      const { data: nom } = await supabase
+        .from("nominations")
+        .select("category")
+        .eq("id", nominationId)
+        .single()
+      
+      const { data: rubric } = await supabase
+        .from("rubrics")
+        .select("criteria")
+        .eq("category", nom?.category)
+        .single()
+      
+      // Sum up the 'max' fields in the criteria JSON
+      const maxPossibleScore = (rubric?.criteria as any[]).reduce((sum: number, item: any) => sum + (item.max || 0), 0)
+
+      // C. The 70% Logic
+      const passingScore = maxPossibleScore * 0.70
+      const finalVerdict = averageScore >= passingScore ? "Qualified" : "Disqualified"
+
+      // D. Update the Nomination Record
+      await supabase
+        .from("nominations")
+        .update({ evaluation_result: finalVerdict })
+        .eq("id", nominationId)
+    }
   }
 
   return { success: true, message: action === "submit" ? "Review submitted!" : "Draft saved." }
