@@ -30,8 +30,54 @@ export default function DropdownMenu({
         onCloseAction();
       }
     };
+
+    // This catches: mouse wheel, trackpad, scrollbars, keyboard scrolls
+    const handleScroll = () => {
+      onCloseAction();
+    };
+
+    // Mouse wheel (fires even if scroll doesn’t happen)
+    const handleWheel = () => {
+      onCloseAction();
+    };
+
+    // Touch scrolling (mobile)
+    const handleTouchMove = () => {
+      onCloseAction();
+    };
+
+    // Keyboard scroll keys
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const keysThatScroll = [
+        "ArrowUp",
+        "ArrowDown",
+        "ArrowLeft",
+        "ArrowRight",
+        "PageUp",
+        "PageDown",
+        "Home",
+        "End",
+        " ",
+      ];
+
+      if (keysThatScroll.includes(e.key)) {
+        onCloseAction();
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [onCloseAction]);
 
   return (
@@ -43,7 +89,9 @@ export default function DropdownMenu({
       {items.map((item, index) => (
         <button
           key={index}
-          className={`block px-4 py-2 text-left hover:bg-gray-50 whitespace-nowrap overflow-hidden overflow-ellipsis ${item.color || "text-gray-700"} ${fontSize}`}
+          className={`block px-4 py-2 text-left hover:bg-gray-50 whitespace-nowrap overflow-hidden overflow-ellipsis ${
+            item.color || "text-gray-700"
+          } ${fontSize}`}
           onClick={item.onClickAction}
         >
           {item.label}
