@@ -6,7 +6,7 @@ import {
   createOrUpdateNomination,
   getMyNominations,
   deleteNomination,
-} from "./actions";
+} from "../../nominators/actions";
 import AlertBanner from "@/components/alertBanner";
 import ConfirmModal from "@/components/confirm-modal";
 

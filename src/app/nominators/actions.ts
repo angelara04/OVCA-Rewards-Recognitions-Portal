@@ -141,9 +141,17 @@ export async function createOrUpdateNomination(formData: FormData) {
   /**
    * HANDLE REMOVED EXISTING ATTACHMENTS
    */
-  const existingAttachments = JSON.parse(
-    formData.get("existing_attachments") as string
-  ) as any[]
+ let existingAttachmentsRaw = formData.get("existing_attachments");
+  let existingAttachments: any[] = [];
+
+  try {
+    existingAttachments = existingAttachmentsRaw
+      ? JSON.parse(existingAttachmentsRaw as string) || []
+      : [];
+  } catch {
+    existingAttachments = [];
+  }
+
 
   // Get previous attachments from DB
   const { data: previousAttachments } = await supabase
@@ -154,7 +162,8 @@ export async function createOrUpdateNomination(formData: FormData) {
   // Compare & delete removed ones
   const removed = previousAttachments?.filter(
     att => !existingAttachments.some((e) => e.id === att.id)
-  )
+  ) || [];
+
 
   for (const att of removed || []) {
     await supabase.from("attachments").delete().eq("id", att.id)

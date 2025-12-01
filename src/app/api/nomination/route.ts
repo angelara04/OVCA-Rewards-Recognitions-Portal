@@ -1,50 +1,77 @@
-//this file is responsible for handling nomination form submissions
 import { NextResponse } from 'next/server'
-import { createOrUpdateNomination } from '@/app/admin/nomi/actions' // adjust if needed
+import { createOrUpdateNomination } from '@/app/nominators/actions'
+import { createClient } from '@/utils/supabase/server'
 
 export async function POST(req: Request) {
   try {
-    const form = await req.formData()
+    const form = await req.formData();
 
-    const action = form.get('action') as string  // 'save' | 'submit'
-    const nomination_id = form.get('nomination_id') as string | null
+    const result = await createOrUpdateNomination(form);
 
-    const payload = {
-      action,
-      nomination_id,
-      category: form.get('category'),
-      nominee_name: form.get('nominee_name'),
-      position: form.get('position'),
-      unit: form.get('unit'),
-      length_of_service: form.get('length_of_service'),
-      achievements: form.get('achievements'),
-      consent_printed_name: form.get('consent_printed_name'),
-      attachments: form.getAll('attachments') as File[],
-      signature: form.get('signature') as File | null
+    return NextResponse.json(result);
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url)
+    const nomination_id = url.searchParams.get('nomination_id')
+    if (!nomination_id) {
+      return NextResponse.json({ success: false, message: 'nomination_id required' }, { status: 400 })
     }
 
-    // Convert payload → FormData
-    const fd = new FormData()
-    Object.entries(payload).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
-        value.forEach((file) => fd.append(key, file))
-      } else if (value !== null && value !== undefined) {
-        fd.append(key, value)
-      }
-    })
+    const supabase = await createClient()
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData?.user) {
+      return NextResponse.json({ success: false, message: 'Not authenticated' }, { status: 401 })
+    }
 
-    const result = await createOrUpdateNomination(fd)
+    const { data: nomination, error } = await supabase
+      .from('nominations')
+      .select(`
+        id,
+        created_by,
+        nominator_name,
+        category,
+        nominee_name,
+        position,
+        unit,
+        length_of_service,
+        achievements,
+        status,
+        created_at
+      `)
+      .eq('id', nomination_id)
+      .maybeSingle()
+
+    if (error || !nomination) {
+      return NextResponse.json({ success: false, message: 'Nomination not found' }, { status: 404 })
+    }
+
+
+    if (nomination.created_by !== authData.user.id) {
+      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 403 })
+    }
+
+    const { data: attachments } = await supabase
+      .from('attachments')
+      .select('id, file_name, file_type, file_size, drive_file_id')
+      .eq('nomination_id', nomination_id)
+
 
     return NextResponse.json({
       success: true,
-      message: action === 'save' ? 'Draft Saved' : 'Nomination Submitted',
-      id: result.id
+      nomination,
+      attachments: attachments || []
     })
-  } catch (err: any) {
-    console.error(err)
-    return NextResponse.json(
-      { success: false, message: err.message || 'Server error' },
-      { status: 500 }
-    )
+  } catch (e: any) {
+    console.error('GET /api/nomination error', e)
+    return NextResponse.json({ success: false, message: e.message || 'Server error' }, { status: 500 })
   }
 }

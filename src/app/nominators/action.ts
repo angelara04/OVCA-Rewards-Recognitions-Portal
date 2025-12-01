@@ -154,7 +154,8 @@ export async function createOrUpdateNomination(formData: FormData) {
   // Compare & delete removed ones
   const removed = previousAttachments?.filter(
     att => !existingAttachments.some((e) => e.id === att.id)
-  )
+  ) || [];
+
 
   for (const att of removed || []) {
     await supabase.from("attachments").delete().eq("id", att.id)

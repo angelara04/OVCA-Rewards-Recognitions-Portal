@@ -207,13 +207,15 @@ export default function MyNominationsPage() {
     const item = filteredData[openDropdownIndex];
     if (!item) return [];
 
+    const nid = item?.id || item?.nomination_id || item?.nomineeid;
     if (item.status === "Completed") {
       return [
         {
           label: "View",
           color: "text-black",
           onClickAction: () => {
-            console.log("View", item);
+            // open in view-only mode
+            if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}&view=1`;
             setOpenDropdownIndex(null);
           },
         },
@@ -226,9 +228,8 @@ export default function MyNominationsPage() {
           label: "Continue",
           color: "text-black",
           onClickAction: () => {
-            const nid = item?.id || item?.nomination_id || item?.nomineeid;
-            if (nid)
-              window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
+            // editable mode
+            if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
             setOpenDropdownIndex(null);
           },
         },
@@ -252,18 +253,19 @@ export default function MyNominationsPage() {
       ];
     }
 
-    // fallback for other statuses: show Continue
-    return [
-      {
-        label: "Continue",
-        color: "text-black",
-        onClickAction: () => {
-          console.log("Continue", item);
-          setOpenDropdownIndex(null);
-        },
+  // fallback
+  return [
+    {
+      label: "Continue",
+      color: "text-black",
+      onClickAction: () => {
+        if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
+        setOpenDropdownIndex(null);
       },
-    ];
-  }, [openDropdownIndex, filteredData]);
+    },
+  ];
+}, [openDropdownIndex, filteredData]);
+
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
