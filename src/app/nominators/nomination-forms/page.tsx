@@ -47,6 +47,8 @@ export default function Page() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [readonly, setReadonly] = useState(false)
   const [category, setCategory] = useState('')
+  const [signatureDriveFile, setSignatureDriveFile] = useState<{ name: string; drive_file_id: string } | null>(null)
+
 
   useEffect(() => {
     const words = description.trim() === '' ? 0 : description.trim().split(/\s+/).length
@@ -111,8 +113,10 @@ export default function Page() {
         setEditingId(nom.id)
         setCategory(nom.category || '')
 
-        if (Array.isArray(data.attachments) && data.attachments.length > 0) {
-          const mapped = data.attachments.map((a: any) => ({
+        // === Separate evidence vs consent attachments ===
+        if (data.attachments) {
+          const evidenceAttachments = data.attachments.evidence || []
+          const mappedEvidence = evidenceAttachments.map((a: any) => ({
             file: null,
             uploaded: true,
             name: a.file_name,
@@ -120,14 +124,19 @@ export default function Page() {
             id: a.id,
             drive_file_id: a.drive_file_id,
           }))
-          setFiles(mapped)
+          setFiles(mappedEvidence)
+
+          const consentAttachments = data.attachments.consent || []
+            if (consentAttachments.length > 0 && consentAttachments[0].drive_file_id) {
+              setSignatureDriveFile({
+                name: consentAttachments[0].file_name,
+                drive_file_id: consentAttachments[0].drive_file_id
+              })
+              setSignaturePreview(`https://drive.google.com/uc?id=${consentAttachments[0].drive_file_id}&export=download`)
+            }
+
         } else {
           setFiles([])
-        }
-
-        if (data.signature_url) {
-          setSignaturePreview(data.signature_url)
-        } else {
           setSignaturePreview(null)
         }
 
@@ -205,33 +214,32 @@ export default function Page() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-const handleDownloadFile = (entry: UploadedFile) => {
-  if (entry.file) {
-    const url = URL.createObjectURL(entry.file)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = entry.name || 'file'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    return
+  const handleDownloadFile = (entry: UploadedFile) => {
+    if (entry.file) {
+      const url = URL.createObjectURL(entry.file)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = entry.name || 'file'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      return
+    }
+
+    if (entry.id) {
+      const downloadUrl = `https://drive.google.com/uc?id=${entry.drive_file_id}&export=download`
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = entry.name || 'file'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      return
+    }
+
+    showToast('File not available for download')
   }
-
-  if (entry.id) {
-    const downloadUrl = `https://drive.google.com/uc?id=${entry.drive_file_id}&export=download`
-    const a = document.createElement('a')
-    a.href = downloadUrl
-    a.download = entry.name || 'file'
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    return
-  }
-
-  showToast('File not available for download')
-}
-
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return
@@ -291,11 +299,14 @@ const handleDownloadFile = (entry: UploadedFile) => {
 
   async function submitToServer(action: 'save' | 'submit') {
     if (readonly) return
-    if (!nomineeName.trim()) return showToast('Please fill nominee name.')
-    if (!position.trim()) return showToast('Please fill position.')
-    if (!unit.trim()) return showToast('Please select unit/office/college.')
-    if (!description.trim()) return showToast('Please add a short description.')
-    if (!consentName.trim()) return showToast('Please fill the printed name for nominee consent.')
+
+    if (action === 'submit') {
+      if (!nomineeName.trim()) return showToast('Please fill nominee name.')
+      if (!position.trim()) return showToast('Please fill position.')
+      if (!unit.trim()) return showToast('Please select unit/office/college.')
+      if (!description.trim()) return showToast('Please add a short description.')
+      if (!consentName.trim()) return showToast('Please fill the printed name for nominee consent.')
+    }
 
     const setLoadingState = action === 'save' ? setSavingDraft : setSubmitting
     setLoadingState(true)
@@ -312,15 +323,14 @@ const handleDownloadFile = (entry: UploadedFile) => {
       formData.append('achievements', description)
       formData.append('consent_printed_name', consentName)
 
+      // === Only evidence attachments here ===
       formData.append(
         'existing_attachments',
         JSON.stringify(files.filter((f) => f.uploaded && f.id).map((f) => ({ id: f.id, file_name: f.name })))
       )
 
       files.forEach((f) => {
-        if (f.file) {
-          formData.append('attachments', f.file)
-        }
+        if (f.file) formData.append('attachments', f.file)
       })
 
       if (signatureFile) formData.append('signature', signatureFile)
@@ -462,27 +472,59 @@ const handleDownloadFile = (entry: UploadedFile) => {
                 </div>
               )}
             </div>
-
-            {/* Nominee Consent */}
-            <div className="rounded-lg border border-[var(--outline-grey)] p-6 bg-white shadow-sm">
+              {/* Nominee Consent */}
+            <div className=" bg-white ">
               <div className="text-[15px] font-semibold mb-2">Nominee Consent</div>
               <p className="text-[15px] mb-3">
                 I give my consent for my name to be included in the list of qualified nominees and I am giving my consent for the HRDO to release to the nominating party the necessary documents needed for the nomination.
               </p>
-              <p className="text-[15px]">Printed Name with Signature of the Nominee</p>
+              <p className="text-[15px] mb-2">Printed Name with Signature of the Nominee</p>
 
-              {/* If signature exists, show preview (always visible) */}
-              {signaturePreview && (
-                <div className="mt-4 border border-[var(--outline-grey)] rounded-lg p-4 bg-white flex items-center justify-center">
-                  <img
-                    src={signaturePreview}
-                    alt="Signature Preview"
-                    className="max-h-64 object-contain rounded-md"
-                  />
+                    {/* Signature file displayed like attachments */}
+                    {signaturePreview && (
+                      <div className="flex items-center justify-between bg-white border border-[var(--outline-grey)] rounded-md px-4 py-3">
+                        <div className="min-w-5">
+                          <div className="text-sm font-medium truncate">
+                    {signatureFile?.name || signatureDriveFile?.name || 'Signature'}
+                  </div>
+
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-sm text-[var(--dark-blue)] hover:underline"
+                      onClick={() => {
+                        const downloadUrl = signatureFile
+                        ? URL.createObjectURL(signatureFile)
+                        : `https://drive.google.com/uc?id=${signatureDriveFile?.drive_file_id}&export=download`
+
+                      const a = document.createElement('a')
+                      a.href = downloadUrl
+                      a.download = signatureFile?.name || signatureDriveFile?.name || 'signature'
+
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        if (signatureFile) URL.revokeObjectURL(downloadUrl)
+                      }}
+                    >
+                      Download
+                    </button>
+
+                    {!readonly && (
+                      <button
+                        type="button"
+                        className="text-sm text-[var(--maroon)] hover:underline flex items-center gap-1"
+                        onClick={removeSignature}
+                      >
+                        <X className="w-4 h-4" /> Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Upload box ONLY when not readonly AND no signature yet */}
+              {/* Upload box ONLY when not readonly and no signature yet */}
               {!readonly && !signaturePreview && (
                 <div
                   onDrop={handleDropSignature}
@@ -505,22 +547,9 @@ const handleDownloadFile = (entry: UploadedFile) => {
                 </div>
               )}
 
-              {/* File name + Remove button (only editable if not read-only) */}
-              {signatureFile && (
-                <div className="mt-3 flex items-center justify-between bg-[var(--light-grey)] rounded-md px-4 py-2">
-                  <span className="text-sm text-[var(--dark-grey)] truncate">{signatureFile.name}</span>
-                  {!readonly && (
-                    <button
-                      type="button"
-                      className="text-sm text-[var(--maroon)] hover:underline flex items-center gap-1"
-                      onClick={removeSignature}
-                    >
-                      <X className="w-4 h-4" /> Remove
-                    </button>
-                  )}
-                </div>
-              )}
+              
             </div>
+
 
             {/* Nominated By (disabled, bound to fname fetched from profile) */}
             <div>

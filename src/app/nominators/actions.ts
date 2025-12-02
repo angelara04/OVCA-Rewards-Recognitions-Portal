@@ -72,15 +72,16 @@ export async function createOrUpdateNomination(formData: FormData) {
   const nominator_name = profile?.name || ""
 
   const nominationId = formData.get("nomination_id") as string | null
-  const action = formData.get("action") as string
+  const action = (formData.get("action") as string) || "save"
   const status = action === "submit" ? "completed" : "in_progress"
 
-  const category = formData.get("category") as string
-  const nominee_name = formData.get("nominee_name") as string
-  const position = formData.get("position") as string
-  const unit = formData.get("unit") as string
-  const length_of_service = formData.get("length_of_service") as string
-  const achievements = formData.get("achievements") as string
+  // Allow empty fields for draft
+  const category = (formData.get("category") as string) || ""
+  const nominee_name = (formData.get("nominee_name") as string) || ""
+  const position = (formData.get("position") as string) || ""
+  const unit = (formData.get("unit") as string) || ""
+  const length_of_service = (formData.get("length_of_service") as string) || ""
+  const achievements = (formData.get("achievements") as string) || ""
 
   let idToUse = nominationId
 
@@ -115,8 +116,14 @@ export async function createOrUpdateNomination(formData: FormData) {
       .select("id")
       .maybeSingle()
 
-    if (error || !data)
-      return { success: false, message: "Error creating nomination" }
+    if (error) {
+      console.error("Supabase insert error:", error)
+      return { success: false, message: "Error creating nomination: " + error.message }
+    }
+
+    if (!data) {
+      return { success: false, message: "Error creating nomination: no data returned" }
+    }
 
     idToUse = data.id
   } else {
@@ -134,55 +141,78 @@ export async function createOrUpdateNomination(formData: FormData) {
       })
       .eq("id", idToUse)
 
-    if (error)
-      return { success: false, message: "Error updating nomination" }
+    if (error) return { success: false, message: "Error updating nomination" }
   }
 
-  /**
-   * HANDLE REMOVED EXISTING ATTACHMENTS
-   */
- let existingAttachmentsRaw = formData.get("existing_attachments");
-  let existingAttachments: any[] = [];
+  // --- Handle attachments ---
+
+  let existingAttachmentsRaw = formData.get("existing_attachments")
+  let existingAttachments: any[] = []
 
   try {
     existingAttachments = existingAttachmentsRaw
       ? JSON.parse(existingAttachmentsRaw as string) || []
-      : [];
+      : []
   } catch {
-    existingAttachments = [];
+    existingAttachments = []
   }
 
-
-  // Get previous attachments from DB
   const { data: previousAttachments } = await supabase
     .from("attachments")
     .select("*")
     .eq("nomination_id", idToUse)
 
-  // Compare & delete removed ones
-  const removed = previousAttachments?.filter(
-    att => !existingAttachments.some((e) => e.id === att.id)
-  ) || [];
-
+  // Delete removed **evidence attachments only**
+  const removed = (previousAttachments || []).filter(att => {
+    if (att.attachment_type === "consent") return false
+    return !existingAttachments.some((e) => e.id === att.id)
+  })
 
   for (const att of removed || []) {
-    await supabase.from("attachments").delete().eq("id", att.id)
-    await deleteFromDrive(att.drive_file_id)
+    try {
+      await supabase.from("attachments").delete().eq("id", att.id)
+      if (att.drive_file_id) await deleteFromDrive(att.drive_file_id)
+    } catch (e) {
+      console.error("Failed to delete removed attachment", att.id, e)
+    }
   }
 
-  /**
-   * HANDLE NEW UPLOADS
-   */
+  // Add new **evidence attachments only**
   const newFiles = formData.getAll("attachments") as (File | Blob)[]
   for (const file of newFiles) {
+    if ((file as any).size === 0) continue
     const driveFileId = await uploadToDrive(file, (file as File).name)
-
     await supabase.from("attachments").insert({
       nomination_id: idToUse,
       file_name: (file as File).name,
       file_type: (file as any).type,
       file_size: (file as any).size,
       drive_file_id: driveFileId,
+      attachment_type: "evidence",
+    })
+  }
+
+  // Handle **consent/signature separately**
+  const signature = formData.get("signature") as File | null
+  if (signature && (signature as any).size > 0) {
+    const previousConsent = (previousAttachments || []).filter((p: any) => p.attachment_type === "consent")
+    for (const c of previousConsent) {
+      try {
+        await supabase.from("attachments").delete().eq("id", c.id)
+        if (c.drive_file_id) await deleteFromDrive(c.drive_file_id)
+      } catch (e) {
+        console.error("Failed to delete previous consent", c.id, e)
+      }
+    }
+
+    const driveFileId = await uploadToDrive(signature, (signature as File).name)
+    await supabase.from("attachments").insert({
+      nomination_id: idToUse,
+      file_name: (signature as File).name,
+      file_type: (signature as any).type,
+      file_size: (signature as any).size,
+      drive_file_id: driveFileId,
+      attachment_type: "consent",
     })
   }
 
@@ -193,91 +223,4 @@ export async function createOrUpdateNomination(formData: FormData) {
       : "Draft saved successfully",
     id: idToUse,
   }
-}
-
-export async function getMyNominations() {
-  const supabase = await createClient()
-  const { data: authData } = await supabase.auth.getUser()
-
-  if (!authData?.user) return []
-
-  const { data: nominations } = await supabase
-    .from("nominations")
-    .select(`
-      id,
-      category,
-      nominee_name,
-      position,
-      unit,
-      length_of_service,
-      achievements,
-      status,
-      created_at,
-      attachments:attachments (
-        id,
-        file_name,
-        file_type,
-        file_size,
-        drive_file_id
-      )
-    `)
-    .eq("created_by", authData.user.id)
-    .order("created_at", { ascending: false })
-
-  return nominations || []
-}
-
-export async function deleteNomination(nominationId: string) {
-  const supabase = await createClient()
-  const { data: authData } = await supabase.auth.getUser()
-
-  if (!authData?.user) {
-    return { success: false, message: "User not authenticated" }
-  }
-
-  // 1. Verify ownership and status before deleting
-  const { data: nomination } = await supabase
-    .from("nominations")
-    .select("id, created_by, status")
-    .eq("id", nominationId)
-    .maybeSingle()
-
-  if (!nomination) {
-    return { success: false, message: "Nomination not found" }
-  }
-
-  if (nomination.created_by !== authData.user.id) {
-    return { success: false, message: "Unauthorized to delete this nomination" }
-  }
-
-  if (nomination.status !== "in_progress") {
-    return { success: false, message: "Only drafts can be deleted" }
-  }
-
-  // 2. Fetch attachments to delete them from Google Drive first
-  const { data: attachments } = await supabase
-    .from("attachments")
-    .select("drive_file_id")
-    .eq("nomination_id", nominationId)
-
-  if (attachments && attachments.length > 0) {
-    for (const att of attachments) {
-      // Reuse your existing deleteFromDrive helper
-      await deleteFromDrive(att.drive_file_id)
-    }
-  }
-
-  // 3. Delete the nomination from Supabase
-  // Note: If you have ON DELETE CASCADE on your attachments table,
-  // deleting the nomination will automatically delete the attachment rows in DB.
-  const { error } = await supabase
-    .from("nominations")
-    .delete()
-    .eq("id", nominationId)
-
-  if (error) {
-    return { success: false, message: "Database error while deleting" }
-  }
-
-  return { success: true, message: "Draft deleted successfully" }
 }
