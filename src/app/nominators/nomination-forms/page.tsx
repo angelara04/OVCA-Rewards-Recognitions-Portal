@@ -214,32 +214,52 @@ export default function Page() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleDownloadFile = (entry: UploadedFile) => {
-    if (entry.file) {
-      const url = URL.createObjectURL(entry.file)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = entry.name || 'file'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      return
-    }
+  // const handleDownloadFile = (entry: UploadedFile) => {
+  //   if (entry.file) {
+  //     const url = URL.createObjectURL(entry.file)
+  //     const a = document.createElement('a')
+  //     a.href = url
+  //     a.download = entry.name || 'file'
+  //     document.body.appendChild(a)
+  //     a.click()
+  //     document.body.removeChild(a)
+  //     URL.revokeObjectURL(url)
+  //     return
+  //   }
 
-    if (entry.id) {
-      const downloadUrl = `https://drive.google.com/uc?id=${entry.drive_file_id}&export=download`
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = entry.name || 'file'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      return
-    }
+  //   if (entry.id) {
+  //     const downloadUrl = `https://drive.google.com/uc?id=${entry.drive_file_id}&export=download`
+  //     const a = document.createElement('a')
+  //     a.href = downloadUrl
+  //     a.download = entry.name || 'file'
+  //     document.body.appendChild(a)
+  //     a.click()
+  //     document.body.removeChild(a)
+  //     return
+  //   }
 
-    showToast('File not available for download')
+  //   showToast('File not available for download')
+  // }
+// Replace existing handleDownloadFile(...) with this function
+const handleViewFile = (entry: UploadedFile) => {
+  // If it's a local File (not yet uploaded to Drive), open an object URL in a new tab
+  if (entry.file) {
+    const url = URL.createObjectURL(entry.file)
+    window.open(url, "_blank")
+    // revoke later so the new tab has time to load the blob URL
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    return
   }
+
+  // If it's an existing file on Drive, open Drive viewer in a new tab
+  if (entry.drive_file_id) {
+    const viewUrl = `https://drive.google.com/file/d/${entry.drive_file_id}/view`
+    window.open(viewUrl, "_blank")
+    return
+  }
+
+  showToast("File not available for viewing")
+}
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return
@@ -351,6 +371,11 @@ export default function Page() {
     } finally {
       setLoadingState(false)
     }
+
+    if (action === 'save') {
+      setTimeout(() => router.push('/nominators/dashboard'), 800)
+    }
+
   }
 
   // UI
@@ -378,7 +403,7 @@ export default function Page() {
               <label className="block text-[15px] font-medium mb-2">Category</label>
 
               {readonly ? (
-                <div className="w-full border border-[var(--outline-grey)] rounded-lg p-3 bg-[var(--light-grey)] text-sm text-[var(--dark-grey)]">
+                <div className="w-full border border-[var(--outline-grey)] rounded-lg p-3 bg-[var(--light-grey)] text-sm text-[var(--black)]">
                   {category || '—'}
                 </div>
               ) : (
@@ -459,7 +484,7 @@ export default function Page() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <button type="button" className="text-sm text-[var(--dark-blue)] hover:underline" onClick={() => handleDownloadFile(f)}>Download</button>
+                        <button type="button" className="text-sm text-[var(--dark-blue)] hover:underline" onClick={() => handleViewFile(f)}>View</button>
 
                         {!readonly && (
                           <button type="button" className="text-sm text-[var(--maroon)] hover:underline flex items-center gap-1" onClick={() => handleRemoveFile(i)}>
@@ -494,21 +519,21 @@ export default function Page() {
                       type="button"
                       className="text-sm text-[var(--dark-blue)] hover:underline"
                       onClick={() => {
-                        const downloadUrl = signatureFile
-                        ? URL.createObjectURL(signatureFile)
-                        : `https://drive.google.com/uc?id=${signatureDriveFile?.drive_file_id}&export=download`
-
-                      const a = document.createElement('a')
-                      a.href = downloadUrl
-                      a.download = signatureFile?.name || signatureDriveFile?.name || 'signature'
-
-                        document.body.appendChild(a)
-                        a.click()
-                        document.body.removeChild(a)
-                        if (signatureFile) URL.revokeObjectURL(downloadUrl)
+                        if (signatureFile) {
+                          const url = URL.createObjectURL(signatureFile)
+                          window.open(url, "_blank")
+                          setTimeout(() => URL.revokeObjectURL(url), 60_000)
+                          return
+                        }
+                        if (signatureDriveFile?.drive_file_id) {
+                          const viewUrl = `https://drive.google.com/file/d/${signatureDriveFile.drive_file_id}/view`
+                          window.open(viewUrl, "_blank")
+                          return
+                        }
+                        showToast("Signature file not available for viewing")
                       }}
                     >
-                      Download
+                      View
                     </button>
 
                     {!readonly && (

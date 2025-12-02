@@ -36,7 +36,7 @@ export default function InputField({
         value={value}
         onChange={(e) => onChange && onChange(e.target.value)}
         className={`${width} px-4 py-2 border border-[var(--outline-grey)] rounded-md ${
-          disabled ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'bg-white'
+          disabled ? 'bg-gray-100 cursor-not-allowed text-[var(--black)]' : 'bg-white'
         } ${height} focus:outline-0`}
         disabled={disabled} 
       />
