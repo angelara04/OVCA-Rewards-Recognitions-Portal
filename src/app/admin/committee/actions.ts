@@ -13,7 +13,7 @@ export type CommitteeNomination = {
   my_status: "Not Started" | "In Progress" | "Completed"
   global_review_count: number
   my_review_id?: string
-  evaluation_result?: string // New field
+  evaluation_result?: string 
 }
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
@@ -196,4 +196,37 @@ export async function saveCommitteeReview(formData: FormData) {
   }
 
   return { success: true, message: action === "submit" ? "Review submitted!" : "Draft saved." }
+}
+
+export async function getNominationResults(nominationId: string) {
+  const supabase = await createClient()
+
+  // 1. Fetch Nomination Details
+  const { data: nomination } = await supabase
+    .from("nominations")
+    .select("*, attachments(*)")
+    .eq("id", nominationId)
+    .single()
+
+  if (!nomination) return { error: "Nomination not found" }
+
+  // 2. Fetch the Rubric (To know the MAX possible score)
+  const { data: rubric } = await supabase
+    .from("rubrics")
+    .select("*")
+    .eq("category", nomination.category)
+    .single()
+
+  // 3. Fetch Reviews + Reviewer Names (Joined with profiles)
+  // Note: This assumes you have a 'profiles' table linked to auth.users
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select(`
+      *,
+      reviewer:profiles ( name ) 
+    `)
+    .eq("nomination_id", nominationId)
+    .eq("status", "completed")
+
+  return { nomination, rubric, reviews }
 }

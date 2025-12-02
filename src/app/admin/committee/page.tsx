@@ -145,9 +145,13 @@ export default function CommitteeDashboard() {
                   </td>
 
                   <td className="p-4 text-right">
-                    {/* UPDATED LINK PATH HERE */}
+                    {/* UPDATED LINK LOGIC: Points to Results if Completed, Review if not */}
                     <Link
-                      href={`/admin/committee/review/${nom.id}`}
+                      href={
+                        nom.my_status === "Completed" 
+                          ? `/admin/committee/results/${nom.id}` 
+                          : `/admin/committee/review/${nom.id}`
+                      }
                       className={`inline-block px-4 py-2 rounded text-sm font-medium shadow-sm transition-colors ${
                         nom.my_status === "Completed"
                           ? "bg-white border text-gray-700 hover:bg-gray-50"
