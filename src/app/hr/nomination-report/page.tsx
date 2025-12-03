@@ -425,7 +425,6 @@ export default function Page() {
                 columns={columns}
                 data={filteredData}
                 onDownloadAction={handleDownload}
-                onViewAction={handleView}
               />
             ) : (
               <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
@@ -482,7 +481,6 @@ export default function Page() {
               columns={columns}
               data={filteredData}
               onDownloadAction={handleDownload}
-              onViewAction={handleView}
             />
           ) : (
             <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
