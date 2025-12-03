@@ -206,13 +206,15 @@ export default function DashboardPage() {
     const item = filteredData[openDropdownIndex];
     if (!item) return [];
 
+    const nid = item?.id || item?.nomination_id || item?.nomineeid;
     if (item.status === "Completed") {
       return [
         {
           label: "View",
           color: "text-black",
           onClickAction: () => {
-            console.log("View", item);
+            // open in view-only mode
+            if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}&view=1`;
             setOpenDropdownIndex(null);
           },
         },
@@ -225,10 +227,8 @@ export default function DashboardPage() {
           label: "Continue",
           color: "text-black",
           onClickAction: () => {
-            // Redirect to the nominators' nomination form for editing (pass nomination id)
-            const nid = item.nomineeid;
-            if (nid)
-              window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
+            // editable mode
+            if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
             setOpenDropdownIndex(null);
           },
         },
@@ -236,26 +236,34 @@ export default function DashboardPage() {
           label: "Delete",
           color: "text-red-600",
           onClickAction: () => {
-            promptDelete(item.nomineeid);
+            setPendingDeleteId(
+              item?.id || item?.nomination_id || item?.nomineeid || null
+            );
+            setBanner({
+              title: "Confirm Deletion",
+              message:
+                "Do you want to delete this nomination? This cannot be undone.",
+              variant: "warning",
+              duration: 600000,
+            });
             setOpenDropdownIndex(null);
           },
         },
       ];
     }
 
-    // fallback for other statuses: show Continue
-    return [
-      {
-        label: "Continue",
-        color: "text-black",
-        onClickAction: () => {
-          console.log("Continue", item);
-          setOpenDropdownIndex(null);
-        },
+  // fallback
+  return [
+    {
+      label: "Continue",
+      color: "text-black",
+      onClickAction: () => {
+        if (nid) window.location.href = `/nominators/nomination-forms?nomination_id=${nid}`;
+        setOpenDropdownIndex(null);
       },
-    ];
-  }, [openDropdownIndex, filteredData]);
-
+    },
+  ];
+}, [openDropdownIndex, filteredData]);
   return (
     <Section
       width="w-full"
