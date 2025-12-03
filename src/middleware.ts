@@ -16,6 +16,7 @@ const ROLE_PERMISSIONS = {
         '/login',
         '/registry',
         '/pending',
+        '/admin'
     ],
     nominator: [
         '/nominators',

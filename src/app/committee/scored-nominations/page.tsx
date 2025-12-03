@@ -1,12 +1,12 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FolderX, MoreHorizontal } from "lucide-react";
 import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/committee-table";
 import DropdownMenu from "@/components/dropdown-menu";
-
 import Section from "@/components/section";
+import { getCommitteeDashboardData, getNominationResults } from "@/app/admin/committee/actions";
 
 interface Employee {
   nomineeid: string;
@@ -21,6 +21,8 @@ interface Employee {
 
 export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [data, setData] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
     null
   );
@@ -29,27 +31,57 @@ export default function Page() {
     left: number;
   } | null>(null);
 
-  // Sample Data
-  const data: Employee[] = Array(25)
-    .fill(null)
-    .map((_, i) => {
-      const date = new Date(Date.now() - i * 86400000);
-      const datesubmitted = date.toLocaleDateString("en-PH");
-      const totalscore = i * 10;
-      const status = totalscore >= 70 ? "Qualified" : "Disqualified";
+  useEffect(() => {
+    async function fetchScored() {
+      setLoading(true);
+
+      // 1️⃣ Get all nominations for committee dashboard
+      const nominations = await getCommitteeDashboardData();
+
+      // 2️⃣ Filter only completed reviews
+      const completedNominations: Employee[] = (
+  await Promise.all(
+    nominations.map(async (nom) => {
+      if (nom.my_status !== "Completed") return null;
+
+      const result = await getNominationResults(nom.id);
+      const totalScore =
+        result.reviews?.reduce((sum: number, r: any) => sum + (r.total_score || 0), 0) || 0;
+
+      const maxScore = result.rubric?.criteria?.reduce(
+        (sum: number, c: any) => sum + (c.max || 0),
+        0
+      ) || 100;
+
+      const avgScore = totalScore / (result.reviews?.length || 1);
+      const status = avgScore >= maxScore * 0.7 ? "Qualified" : "Disqualified";
+
+      const latestReviewDate = result.reviews?.[0]?.updated_at
+        ? new Date(result.reviews[0].updated_at).toLocaleDateString("en-PH")
+        : "";
+
       return {
-        nomineeid: `E0125${1000 + i}`,
-        nomineename: `Maria Del Santos ${i + 1}`,
-        category: "Administrative Excellence",
-        nominatorid: `E0125${2000 + i}`,
-        nominatorname: `Jose Rizal ${i + 1}`,
-        datescored: datesubmitted,
-        totalscore,
+        nomineeid: nom.id,
+        nomineename: nom.nominee_name,
+        category: nom.category,
+        nominatorid: nom.nominator_id,
+        nominatorname: nom.nominator_name || "",
+        datescored: latestReviewDate,
+        totalscore: avgScore,
         status,
       };
-    });
+    })
+  )
+).filter((x): x is Employee => x !== null); // ✅ TypeScript now knows nulls are removed
 
-  // Filtered Data (search only)
+
+      setData(completedNominations.filter(Boolean) as Employee[]);
+      setLoading(false);
+    }
+
+    fetchScored();
+  }, []);
+
   const filteredData = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return data;
@@ -73,7 +105,6 @@ export default function Page() {
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
-      {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">
@@ -88,75 +119,72 @@ export default function Page() {
         </Button>
       </div>
 
-      {/* Content */}
       <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm -mt-[1px] px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Completed Scored Nominations
         </h2>
-        {/* Search */}
+
         <SearchBar
           value={searchQuery}
           onChange={(val: string) => setSearchQuery(val)}
           placeholder="Search by nominee name"
         />
 
-        {/* Table Container */}
         <div className="mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
-          {hasResults ? (
-            <div className="w-full overflow-auto">
-              <Table
-                columns={columns}
-                data={filteredData}
-                renderActions={(_row, i) => {
-                  const employee = filteredData[i];
-                  // allow interaction for both statuses
-                  const isInteractive =
-                    employee.status === "Qualified" ||
-                    employee.status === "Disqualified";
-                  const iconColor = isInteractive
-                    ? "text-[var(--maroon)]"
-                    : "text-[var(--outline-grey)]";
-                  const cursor = isInteractive
-                    ? "cursor-pointer"
-                    : "cursor-not-allowed";
+          {loading ? (
+  <div className="flex flex-col items-center justify-center h-[60vh] gap-3 w-full">
+    <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+    <p className="text-[var(--dark-grey)] text-sm font-medium">Loading...</p>
+  </div>
+) : hasResults ? (
+  <div className="w-full overflow-auto">
+    <Table
+      columns={columns}
+      data={filteredData}
+      renderActions={(_row, i) => {
+        const employee = filteredData[i];
+        const isInteractive =
+          employee.status === "Qualified" ||
+          employee.status === "Disqualified";
+        const iconColor = isInteractive
+          ? "text-[var(--maroon)]"
+          : "text-[var(--outline-grey)]";
+        const cursor = isInteractive
+          ? "cursor-pointer"
+          : "cursor-not-allowed";
 
-                  return (
-                    <button
-                      // enable for both statuses
-                      disabled={!isInteractive}
-                      className={`${iconColor} ${cursor}`}
-                      onClick={(e) => {
-                        if (!isInteractive) return;
-                        const buttonRect = (
-                          e.currentTarget as HTMLElement
-                        ).getBoundingClientRect();
-                        const containerRect = document
-                          .querySelector(".content-area")!
-                          .getBoundingClientRect();
-                        setDropdownPosition({
-                          top: buttonRect.bottom - containerRect.top + 4,
-                          left: buttonRect.left - containerRect.left - 90,
-                        });
-                        setOpenDropdownIndex(
-                          openDropdownIndex === i ? null : i
-                        );
-                      }}
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
-                  );
-                }}
-              />
-            </div>
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
-              <FolderX size={100} className="mb-4 opacity-70" />
-              <p className="font-bold text-3xl">No Results Found</p>
-            </div>
-          )}
+        return (
+          <button
+            disabled={!isInteractive}
+            className={`${iconColor} ${cursor}`}
+            onClick={(e) => {
+              if (!isInteractive) return;
+              const buttonRect = e.currentTarget.getBoundingClientRect();
+              const containerRect = document
+                .querySelector(".content-area")!
+                .getBoundingClientRect();
+              setDropdownPosition({
+                top: buttonRect.bottom - containerRect.top + 4,
+                left: buttonRect.left - containerRect.left - 90,
+              });
+              setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+            }}
+          >
+            <MoreHorizontal size={18} />
+          </button>
+        );
+      }}
+    />
+  </div>
+) : (
+  <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
+    <FolderX size={100} className="mb-4 opacity-70" />
+    <p className="font-bold text-3xl">No Results Found</p>
+  </div>
+)}
+
         </div>
 
-        {/* Dropdown (single Evaluate action) */}
         {typeof window !== "undefined" &&
           openDropdownIndex !== null &&
           dropdownPosition && (
@@ -168,8 +196,7 @@ export default function Page() {
                   label: "View",
                   color: "text-black",
                   onClickAction: () => {
-                    // replace with navigation/handler to evaluation page
-                    console.log("Evaluate", filteredData[openDropdownIndex!]);
+                    console.log("View", filteredData[openDropdownIndex!]);
                     setOpenDropdownIndex(null);
                   },
                 },

@@ -46,7 +46,7 @@ export default function Table<T>({
       }
     }
 
-    if (col.key === "status") {
+        if (col.key === "status") {
       // map incoming values to StatusBadge expected labels
       const statusStr = typeof raw === "string" ? raw : "";
       const mappedStatus =
@@ -59,8 +59,15 @@ export default function Table<T>({
           : statusStr.toLowerCase() === "completed"
           ? "Completed"
           : statusStr; // allow "In Progress", "Qualified", etc.
-      return <StatusBadge status={mappedStatus as any} />;
+
+      // wrap the badge in an inline-flex, no-wrap container to prevent wrapping
+      return (
+        <div className="inline-flex items-center whitespace-nowrap">
+          <StatusBadge status={mappedStatus as any} />
+        </div>
+      );
     }
+
 
     // default
     return (raw ?? "").toString();
@@ -141,11 +148,11 @@ export default function Table<T>({
                       !isLast && "border-r border-[var(--outline-grey)]",
                       "text-left"
                     )}
-                    style={
-                      typeof col.width === "number"
-                        ? { width: `${col.width}px` }
-                        : undefined
-                    }
+                    style={{
+                    ...(typeof col.width === "number" ? { width: `${col.width}px` } : {}),
+                    ...(col.key === "status" ? { whiteSpace: "nowrap", minWidth: "140px" } : {}),
+                  }}
+
                   >
                     {renderCellValue(col, row, i)}
                   </td>
