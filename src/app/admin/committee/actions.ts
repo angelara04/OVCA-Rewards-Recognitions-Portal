@@ -14,35 +14,45 @@ export type CommitteeNomination = {
   global_review_count: number
   my_review_id?: string
   evaluation_result?: string 
+  nominator_name?:string
+  nominator_id:string
 }
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
-  const supabase = await createClient()
-  const { data: authData } = await supabase.auth.getUser()
-  if (!authData?.user) return []
-  const myUserId = authData.user.id
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData?.user) return [];
 
+  const myUserId = authData.user.id;
+
+  // 🔥 1. Get total committee reviewers dynamically
+  const { data: committeeMembers } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "committee");
+
+  const committeeCount = committeeMembers?.length || 0;
+
+  // 2. Fetch nominations and their reviews
   const { data: nominations, error } = await supabase
     .from("nominations")
     .select(`
-      id, nominee_name, category, position, unit, created_at, status, evaluation_result,
-      reviews ( id, reviewer_id, status )
+      id, nominee_name, category, position, unit, created_at, status, evaluation_result, nominator_name, created_by,
+      reviews(id, reviewer_id, status)
     `)
-    .eq("status", "completed")
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: false });
 
-  if (error || !nominations) return []
+  if (error || !nominations) return [];
 
-  return nominations.map((nom) => {
-    const allReviews = nom.reviews || []
-    const globalCompletedCount = allReviews.filter((r: any) => r.status === "completed").length
-    const myReview = allReviews.find((r: any) => r.reviewer_id === myUserId)
+  const mapped: CommitteeNomination[] = nominations.map((nom) => {
+    const allReviews = nom.reviews || [];
+    const globalCompletedCount = allReviews.filter((r) => r.status === "completed").length;
 
-    let derivedStatus: "Not Started" | "In Progress" | "Completed" = "Not Started"
+    const myReview = allReviews.find((r) => r.reviewer_id === myUserId);
 
-    if (myReview?.status === "completed") derivedStatus = "Completed"
-    else if (globalCompletedCount >= 3) derivedStatus = "Completed" // Locked
-    else if (myReview) derivedStatus = "In Progress"
+    let myStatus: "Not Started" | "In Progress" | "Completed" = "Not Started";
+    if (myReview?.status === "completed") myStatus = "Completed";
+    else if (myReview?.status === "in_progress") myStatus = "In Progress";
 
     return {
       id: nom.id,
@@ -51,36 +61,43 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
       position: nom.position,
       unit: nom.unit,
       submitted_at: nom.created_at,
-      my_status: derivedStatus,
+      my_status: myStatus,
       global_review_count: globalCompletedCount,
       my_review_id: myReview?.id,
-      evaluation_result: nom.evaluation_result // Return the verdict if it exists
-    }
-  })
+      evaluation_result: nom.evaluation_result,
+      nominator_id: nom.created_by,
+      nominator_name: nom.nominator_name,
+    };
+  });
+
+  
+  return mapped
 }
 
-export async function getReviewContext(nominationId: string) {
-  const supabase = await createClient()
-  const { data: auth } = await supabase.auth.getUser()
-  if (!auth?.user) return null
 
-  const userId = auth.user.id
+
+export async function getReviewContext(nominationId: string) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return null;
+
+  const userId = auth.user.id;
 
   // Fetch Nomination
   const { data: nomination } = await supabase
     .from("nominations")
     .select(`*, attachments(*)`)
     .eq("id", nominationId)
-    .single()
+    .single();
 
-  if (!nomination) return { error: "Nomination not found" }
+  if (!nomination) return { error: "Nomination not found" };
 
   // Fetch Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
     .select("*")
     .eq("category", nomination.category)
-    .single()
+    .single();
 
   // Fetch My Review
   const { data: myReview } = await supabase
@@ -88,25 +105,38 @@ export async function getReviewContext(nominationId: string) {
     .select("*")
     .eq("nomination_id", nominationId)
     .eq("reviewer_id", userId)
-    .maybeSingle()
+    .maybeSingle();
 
-  // Check Global Lock
+  // 🔥 Fetch number of committee members
+  const { data: committeeMembers } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "committee");
+
+  const committeeCount = committeeMembers?.length || 0;
+
+  // Count Global Completed Reviews
   const { count } = await supabase
     .from("reviews")
     .select("*", { count: "exact", head: true })
     .eq("nomination_id", nominationId)
-    .eq("status", "completed")
+    .eq("status", "completed");
 
-  const globalCompletedCount = count || 0
-  const isLocked = globalCompletedCount >= 3 && myReview?.status !== "completed"
+  const globalCompletedCount = count || 0;
+
+  // 🔥 Dynamic Lock Logic
+  const isLocked =
+    globalCompletedCount >= committeeCount &&
+    myReview?.status !== "completed";
 
   return {
     nomination,
     rubric,
     existingReview: myReview,
     isLocked,
-  }
+  };
 }
+
 
 // --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
 export async function saveCommitteeReview(formData: FormData) {
