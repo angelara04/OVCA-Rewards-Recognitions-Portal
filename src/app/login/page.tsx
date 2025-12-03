@@ -1,14 +1,19 @@
 "use client"
-import { signWithGoogle } from "./actions"
+import { signWithGoogle, login } from "./actions" // Removed signup
 import Button from "@/components/button"
 import Input from "@/components/input"
 
 export default function LoginPage() {
+  
+  const handleLogin = async (formData: FormData) => {
+    await login(formData);
+  };
+
   return (
     <div className="h-screen flex bg-white">
       {/* Left side - Branded image */}
       <div className="hidden lg:flex lg:w-1/2 bg-cover bg-center overflow-hidden">
-        <img src="../login-side-picture.png" className="w-full h-full object-cover" />
+        <img src="../login-side-picture.png" alt="Branded side view" className="w-full h-full object-cover" />
       </div>
 
       {/* Right side - Login form */}
@@ -18,9 +23,9 @@ export default function LoginPage() {
           <div className="bg-[var(--maroon)] rounded-t-lg p-8 text-center cursor-default">
             <div className="text-yellow-400 text-md font-semibold tracking-wide mb-2">UP MINDANAO</div>
             <span className="text-[var(--gold)] text-3xl font-regular">
-                GAWAD{" "}
-                <span className="text-[var(--gold)] font-semibold">TSANSELOR</span>
-              </span>
+              GAWAD{" "}
+              <span className="text-[var(--gold)] font-semibold">TSANSELOR</span>
+            </span>
           </div>
 
           {/* Form Container */}
@@ -32,14 +37,15 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <form className="flex flex-col gap-6">
+            <form className="flex flex-col gap-6" id="auth-form">
               {/* Username Field */}
               <div className="flex flex-col gap-2">
-                <Input 
-                  id="username" 
-                  label="Username" 
-                  type="text" 
-                  placeholder="Enter your username" 
+                <Input
+                  id="username"
+                  name="username" 
+                  label="Email"
+                  type="email"
+                  placeholder="Enter your email"
                   width="w-full" />
               </div>
 
@@ -47,6 +53,7 @@ export default function LoginPage() {
               <div className="flex flex-col gap-2">
                 <Input
                   id="password"
+                  name="password"
                   label="Password"
                   type="password"
                   placeholder="Enter your password"
@@ -54,12 +61,34 @@ export default function LoginPage() {
                 />
               </div>
 
+              {/* --- ACTION BUTTON --- */}
+              <div className="mt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleLogin(new FormData(document.getElementById('auth-form') as HTMLFormElement));
+                  }}
+                  className="w-full h-11 bg-[#8A1538] hover:bg-[#6c112b] text-white font-semibold flex items-center justify-center rounded-md"
+                >
+                  Sign In
+                </Button>
+              </div>
+
+              {/* Divider */}
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-300"></div>
+                <span className="flex-shrink mx-4 text-gray-500 text-sm">OR</span>
+                <div className="flex-grow border-t border-gray-300"></div>
+              </div>
+
               {/* Login with Google Button */}
               <Button
                 type="button"
                 variant="reset"
                 onClick={() => signWithGoogle()}
-                className="w-full h-11 text-white font-semibold flex items-center justify-center gap-2 rounded-md mt-2"
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 rounded-md"
               >
                 <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                   <img src="../google-color.svg" alt="Google Logo" className="w-4 h-4" />
@@ -68,11 +97,10 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Forgot Password Link */}
             <div className="mt-6 text-center cursor-default">
               <span className="text-gray-700 text-sm">
                 Forgot your password?{" "}
-                <span className="text-[#8A1538] font-semibold">Contact your system administrator</span>
+                <span className="text-[#8A1538] font-semibold">Contact system administrator</span>
               </span>
             </div>
           </div>
