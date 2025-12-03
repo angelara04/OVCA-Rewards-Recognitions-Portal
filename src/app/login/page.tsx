@@ -1,10 +1,25 @@
 "use client"
-import { signWithGoogle, login } from "./actions" // Removed signup
+import { signWithGoogle, login } from "./actions" 
 import Button from "@/components/button"
 import Input from "@/components/input"
+import { useSearchParams} from "next/navigation"
+import { useEffect, useState } from "react"
+import { TriangleAlert, X } from "lucide-react"
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const [error, setError] = useState("");
   
+  // Handle Error Params from Server Action Redirects
+  useEffect(() => {
+    const errorMsg = searchParams.get("error");
+    if (errorMsg) {
+      setError(errorMsg);
+      // Clean up URL without refreshing
+      window.history.replaceState(null, '', '/login');
+    }
+  }, [searchParams]);
+
   const handleLogin = async (formData: FormData) => {
     await login(formData);
   };
@@ -31,11 +46,28 @@ export default function LoginPage() {
           {/* Form Container */}
           <div className="bg-white border border-gray-200 rounded-b-lg px-4 sm:p-10 shadow-lg">
             {/* Tab */}
-            <div className="flex justify-center mb-8">
+            <div className="flex justify-center mb-6">
               <div className="text-center pb-3 border-b-2 border-[#8A1538] w-[40%]">
                 <span className="text-[#8A1538] font-medium text-lg cursor-default">Login</span>
               </div>
             </div>
+
+            {/* Error Banner */}
+            {error && (
+              <div className="mb-6 p-4 rounded-md bg-[var(--light-red)] border border-[#f4aeae] flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <TriangleAlert className="w-5 h-5 text-[var(--maroon)] mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-[var(--hover-maroon)]">Authentication Error</h3>
+                  <p className="text-sm text-[var(--maroon)] mt-1">{error}</p>
+                </div>
+                <button 
+                  onClick={() => setError("")}
+                  className="text-[var(--maroon)] hover:text-[var(--hover-maroon)] transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            )}
 
             <form className="flex flex-col gap-6" id="auth-form">
               {/* Username Field */}
@@ -70,7 +102,7 @@ export default function LoginPage() {
                     e.preventDefault();
                     handleLogin(new FormData(document.getElementById('auth-form') as HTMLFormElement));
                   }}
-                  className="w-full h-11 bg-[#8A1538] hover:bg-[#6c112b] text-white font-semibold flex items-center justify-center rounded-md"
+                  className="w-full h-11 text-white font-semibold flex items-center justify-center rounded-md"
                 >
                   Sign In
                 </Button>
@@ -78,17 +110,17 @@ export default function LoginPage() {
 
               {/* Divider */}
               <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-gray-300"></div>
-                <span className="flex-shrink mx-4 text-gray-500 text-sm">OR</span>
-                <div className="flex-grow border-t border-gray-300"></div>
+                <div className="flex-grow border-t border-[var(--outline-grey)]"></div>
+                <span className="flex-shrink mx-4 text-[var(--dark-grey)] text-sm">OR</span>
+                <div className="flex-grow border-t border-[var(--outline-grey)]"></div>
               </div>
 
               {/* Login with Google Button */}
               <Button
                 type="button"
-                variant="reset"
+                variant="maroon"
                 onClick={() => signWithGoogle()}
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center gap-2 rounded-md"
+                className="w-full h-11 text-white font-semibold flex items-center justify-center gap-2 rounded-md"
               >
                 <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                   <img src="../google-color.svg" alt="Google Logo" className="w-4 h-4" />
@@ -98,9 +130,9 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 text-center cursor-default">
-              <span className="text-gray-700 text-sm">
+              <span className="text-[var(--dark-grey)] text-sm">
                 Forgot your password?{" "}
-                <span className="text-[#8A1538] font-semibold">Contact system administrator</span>
+                <span className="text-[var(--maroon)] font-semibold">Contact system administrator</span>
               </span>
             </div>
           </div>

@@ -19,6 +19,12 @@ export async function login(formData: FormData) {
   console.log("Password received:", rawPassword ? "*****" : "NULL/EMPTY")
   console.log("------------------------------------------------")
 
+  // Custom validation before Supabase call to provide better error messages
+  if (!rawEmail || !rawPassword) {
+    // If either field is missing, return specific error
+    redirect(`/login?error=${encodeURIComponent("Missing email or password")}`)
+  }
+
   const data = {
     email: rawEmail,
     password: rawPassword,
@@ -29,8 +35,15 @@ export async function login(formData: FormData) {
   if (error) {
     // Log the specific error from Supabase
     console.error("SUPABASE ERROR:", error.message);
+    
+    // Check if the error is the specific "missing email or phone" one and override it
+    let errorMessage = error.message;
+    if (errorMessage.toLowerCase().includes("missing email or phone")) {
+        errorMessage = "Missing email or password";
+    }
+
     // Redirect back to login with the error message
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    redirect(`/login?error=${encodeURIComponent(errorMessage)}`)
   }
 
   revalidatePath('/', 'layout')
