@@ -10,6 +10,7 @@ interface InputFieldProps {
   disabled?: boolean; 
   onFocus?: React.FocusEventHandler<HTMLInputElement>;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  name?: string;
 }
 
 export default function InputField({
@@ -21,7 +22,8 @@ export default function InputField({
   width = "w-full",
   height = "h-[38px]",
   type = "text",
-  disabled = false, // Set default value
+  disabled = false,
+  name, // <--- 1. ADD THIS to the destructuring list
 }: InputFieldProps) {
   return (
     <div className="flex flex-col gap-[8px]">
@@ -31,7 +33,7 @@ export default function InputField({
       <input
         type={type}
         id={id}
-        name={id}
+        name={name || id} // <--- 2. UPDATE THIS (Use the prop, fallback to id)
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange && onChange(e.target.value)}

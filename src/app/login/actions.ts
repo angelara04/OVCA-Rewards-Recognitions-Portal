@@ -8,17 +8,42 @@ import { createClient } from '@/utils/supabase/server'
 export async function login(formData: FormData) {
   const supabase = await createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
+  // 1. Get the raw values
+  const rawEmail = formData.get('username') as string
+  const rawPassword = formData.get('password') as string
+
+  // --- DEBUG LOGS (Check your VS Code Terminal when you click login) ---
+  console.log("------------------------------------------------")
+  console.log("LOGIN ATTEMPT:")
+  console.log("Email received:", rawEmail)
+  console.log("Password received:", rawPassword ? "*****" : "NULL/EMPTY")
+  console.log("------------------------------------------------")
+
+  // Custom validation before Supabase call to provide better error messages
+  if (!rawEmail || !rawPassword) {
+    // If either field is missing, return specific error
+    redirect(`/login?error=${encodeURIComponent("Missing email or password")}`)
+  }
+
   const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
+    email: rawEmail,
+    password: rawPassword,
   }
 
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    redirect('/error')
+    // Log the specific error from Supabase
+    console.error("SUPABASE ERROR:", error.message);
+    
+    // Check if the error is the specific "missing email or phone" one and override it
+    let errorMessage = error.message;
+    if (errorMessage.toLowerCase().includes("missing email or phone")) {
+        errorMessage = "Missing email or password";
+    }
+
+    // Redirect back to login with the error message
+    redirect(`/login?error=${encodeURIComponent(errorMessage)}`)
   }
 
   revalidatePath('/', 'layout')
