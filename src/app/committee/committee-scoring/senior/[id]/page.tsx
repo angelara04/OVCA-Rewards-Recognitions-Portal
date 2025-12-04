@@ -70,7 +70,7 @@ export default function SeniorPage() {
   const options = [
     {
       label: "Senior Professional (SG 9 and above, Non-Chief of Office)",
-      value: "senior",
+      value: "Non-Teaching Personnel (Senior Level)",
     },
   ];
 
@@ -83,6 +83,7 @@ export default function SeniorPage() {
     if (allowed.includes(categoryParam)) {
       setSelectedValues([categoryParam]);
     }
+
     // run on mount / when searchParams change
   }, [searchParams]);
 
