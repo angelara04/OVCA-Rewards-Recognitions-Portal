@@ -14,8 +14,8 @@ export type CommitteeNomination = {
   global_review_count: number
   my_review_id?: string
   evaluation_result?: string 
-  nominator_name?:string
-  nominator_id:string
+  nominator_name?: string
+  nominator_id: string
 }
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
@@ -25,7 +25,7 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
 
   const myUserId = authData.user.id;
 
-  // 🔥 1. Get total committee reviewers dynamically
+  // 1. Get total committee reviewers dynamically
   const { data: committeeMembers } = await supabase
     .from("profiles")
     .select("id")
@@ -70,11 +70,8 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
     };
   });
 
-  
   return mapped
 }
-
-
 
 export async function getReviewContext(nominationId: string) {
   const supabase = await createClient();
@@ -107,7 +104,7 @@ export async function getReviewContext(nominationId: string) {
     .eq("reviewer_id", userId)
     .maybeSingle();
 
-  // 🔥 Fetch number of committee members
+  // Fetch number of committee members
   const { data: committeeMembers } = await supabase
     .from("profiles")
     .select("id")
@@ -124,7 +121,7 @@ export async function getReviewContext(nominationId: string) {
 
   const globalCompletedCount = count || 0;
 
-  // 🔥 Dynamic Lock Logic
+  // Dynamic Lock Logic
   const isLocked =
     globalCompletedCount >= committeeCount &&
     myReview?.status !== "completed";
@@ -137,8 +134,7 @@ export async function getReviewContext(nominationId: string) {
   };
 }
 
-
-// --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
+// --- UPDATED SAVE ACTION WITH IPCR LOGIC ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -151,20 +147,38 @@ export async function saveCommitteeReview(formData: FormData) {
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
-  const scoresJson: Record<string, number> = {}
+  // Use 'any' to allow storing the metadata object structure
+  const scoresJson: Record<string, any> = {}
   let myTotalScore = 0
 
+  // 1. Capture Breakdown Data for restoration later (The 3 years)
+  const breakdownData = {
+    y2022: parseFloat(rawData["y2022"] as string) || 0,
+    y2023: parseFloat(rawData["y2023"] as string) || 0,
+    y2024: parseFloat(rawData["y2024"] as string) || 0,
+  }
+
+  // 2. Filter out non-score keys (including the breakdown inputs)
+  const excludedKeys = ["nomination_id", "action", "comments", "recommendation", "y2022", "y2023", "y2024"]; 
+
   Object.keys(rawData).forEach((key) => {
-    if (!["nomination_id", "action", "comments", "recommendation"].includes(key)) {
-      const score = Number(rawData[key]) || 0
+    if (!excludedKeys.includes(key)) {
+      // Use parseFloat to preserve decimals
+      const score = parseFloat(rawData[key] as string) || 0
       scoresJson[key] = score
       myTotalScore += score
     }
   })
 
+  // 3. Inject Breakdown Data as Metadata into the JSON
+  scoresJson["meta_ipcr_breakdown"] = breakdownData;
+
+  // Round total score to 2 decimal places for clean DB storage
+  myTotalScore = parseFloat(myTotalScore.toFixed(2))
+
   const status = action === "submit" ? "completed" : "in_progress"
 
-  // 1. Save the individual review
+  // Save the individual review
   const { error } = await supabase
     .from("reviews")
     .upsert({
@@ -179,7 +193,7 @@ export async function saveCommitteeReview(formData: FormData) {
 
   if (error) return { success: false, message: "Failed to save review" }
 
-  // 2. IF SUBMITTING: Check if we need to calculate the Final Verdict
+  // IF SUBMITTING: Calculate Final Verdict
   if (action === "submit") {
     
     // Count how many finished reviews exist now
@@ -197,7 +211,6 @@ export async function saveCommitteeReview(formData: FormData) {
       const averageScore = sumOfReviewers / allReviews.length
 
       // B. Get Max Possible Score from Rubric
-      // We need to fetch the nomination first to get the category
       const { data: nom } = await supabase
         .from("nominations")
         .select("category")
@@ -231,24 +244,31 @@ export async function saveCommitteeReview(formData: FormData) {
 export async function getNominationResults(nominationId: string) {
   const supabase = await createClient()
 
-  // 1. Fetch Nomination Details
-  const { data: nomination } = await supabase
+  // 1. Fetch Nomination Details + Attachments + Nominator Name
+  // FIX: Switched to '!created_by' which is the standard link to profiles.
+  const { data: nomination, error } = await supabase
     .from("nominations")
-    .select("*, attachments(*)")
+    .select(`
+      *, 
+      attachments(*),
+      nominator:profiles!created_by ( name ) 
+    `)
     .eq("id", nominationId)
     .single()
 
-  if (!nomination) return { error: "Nomination not found" }
+  if (error || !nomination) {
+    console.error("Fetch Error:", error);
+    return { error: "Nomination not found" }
+  }
 
-  // 2. Fetch the Rubric (To know the MAX possible score)
+  // 2. Fetch the Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
     .select("*")
     .eq("category", nomination.category)
     .single()
 
-  // 3. Fetch Reviews + Reviewer Names (Joined with profiles)
-  // Note: This assumes you have a 'profiles' table linked to auth.users
+  // 3. Fetch Reviews
   const { data: reviews } = await supabase
     .from("reviews")
     .select(`
