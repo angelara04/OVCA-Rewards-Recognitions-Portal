@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import Section from "@/components/section";
 import InputField from "@/components/input";
@@ -21,6 +21,17 @@ export default function SeniorPage() {
   const [showModal, setShowModal] = useState(false);
 
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+
+  // Pre-select category if passed via query param `category` (slug)
+  useEffect(() => {
+    const categoryParam = searchParams.get("category") || "";
+    if (categoryParam) {
+      // senior page only has 'senior' value
+      if (categoryParam === "senior") {
+        setSelectedValues([categoryParam]);
+      }
+    }
+  }, [searchParams]);
 
   const handleCheckboxChange = (value: string, checked: boolean) => {
     if (checked) setSelectedValues((prev) => [...prev, value]);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useParams, useRouter } from "next/navigation";
 import Section from "@/components/section";
 import InputField from "@/components/input";
@@ -20,6 +20,18 @@ export default function JuniorPage() {
   const [showModal, setShowModal] = useState(false);
 
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+
+  // Pre-select category if passed via query param `category` (slug)
+  useEffect(() => {
+    const categoryParam = searchParams.get("category") || "";
+    if (categoryParam) {
+      // options values: 'industrial' or 'junior'
+      if (categoryParam === "industrial" || categoryParam === "junior") {
+        setSelectedValues([categoryParam]);
+      }
+    }
+    // run on mount / when searchParams change
+  }, [searchParams]);
 
   const handleCheckboxChange = (value: string, checked: boolean) => {
     if (checked) setSelectedValues((prev) => [...prev, value]);
