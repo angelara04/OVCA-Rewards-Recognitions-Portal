@@ -8,10 +8,9 @@ import CheckboxGroup from "@/components/checkbox";
 import Button from "@/components/button";
 import PerformanceEvaluationForm from "@/components/table/committee-scoring";
 import UploadedFilesModal from "@/components/modals/nominator-documents";
-
+import { getReviewContext } from "@/app/admin/committee/actions";
 export default function JuniorPage() {
   const searchParams = useSearchParams();
-  const { id } = useParams();
   const router = useRouter();
 
   const nomineeName = searchParams.get("nomineename") || "";
@@ -20,6 +19,48 @@ export default function JuniorPage() {
   const [showModal, setShowModal] = useState(false);
 
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+
+  //REVIEW
+  const [reviewContext, setReviewContext] = useState<any | null>(null);
+
+  useEffect(() => {
+    // Only run if nomineeId exists
+    if (!nomineeId) {
+      setReviewContext(null);
+      return;
+    }
+
+    // IIFE to allow async call in useEffect
+    (async () => {
+      try {
+        const ctx = await getReviewContext(nomineeId);
+
+        // Only set if ctx is valid
+        if (ctx) {
+          setReviewContext(ctx);
+          console.log("Review Context fetched:", ctx);
+        } else {
+          setReviewContext(null);
+          console.warn("No review context returned for nomineeId:", nomineeId);
+        }
+      } catch (err) {
+        console.error(
+          "Failed to fetch review context for nomineeId:",
+          nomineeId,
+          err
+        );
+        setReviewContext(null);
+      }
+    })();
+  }, [nomineeId]);
+  useEffect(() => {
+    if (reviewContext) {
+      console.log("Nomination:", reviewContext.nomination);
+      console.log("Rubric:", reviewContext.rubric);
+      console.log("Existing Review:", reviewContext.existingReview);
+      console.log("Is Locked:", reviewContext.isLocked);
+    }
+  }, [reviewContext]);
 
   // Pre-select category if passed via query param `category` (slug)
   useEffect(() => {
@@ -123,7 +164,7 @@ export default function JuniorPage() {
           )}
         </div>
 
-        <PerformanceEvaluationForm />
+        <PerformanceEvaluationForm reviewContext={reviewContext} />
       </Section>
     </Section>
   );

@@ -1,10 +1,32 @@
 import React, { useState, useEffect } from "react";
 import Button from "../button";
-import { Category } from "@/app/store/category";
 
-export default function PerformanceEvaluationForm() {
-  const { selectedCategory } = Category();
+interface ScoresJSON {
+  ipcr?: number;
+  intervening?: number;
+  innovations?: number;
+  awards?: number;
+  service?: number;
+  punctuality?: number;
+  quality?: number;
+  teamwork?: number;
+}
 
+interface Nomination {
+  category?: string;
+}
+
+interface ReviewContext {
+  scores_json?: ScoresJSON;
+  nomination?: Nomination | null;
+}
+
+export default function PerformanceEvaluationForm({
+  reviewContext,
+}: {
+  reviewContext: ReviewContext | null;
+}) {
+  // Table descriptions
   const partAKeys = ["2022", "2023", "2024 (Jan–Jun)"];
   const partBKeys = [
     "Intervening Activities",
@@ -18,26 +40,12 @@ export default function PerformanceEvaluationForm() {
     "Ability to work effectively with others as a team (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)",
   ];
 
+  // Maximum points
   const partAMax = 60;
-  const [partBMax, setPartBMax] = useState<number[]>([0, 0, 0, 0]);
   const partCMax = [5, 5, 5];
+  const [partBMax, setPartBMax] = useState<number[]>([0, 0, 0, 0]);
 
-  // ✅ Automatically update partBMax when category changes
-  useEffect(() => {
-    if (selectedCategory === "Non-Teaching Personnel (Senior Level)") {
-      setPartBMax([10, 8, 4, 3]);
-    } else if (
-      selectedCategory ===
-      "Non-Teaching Personnel (Junior and Industrial Level)"
-    ) {
-      setPartBMax([12, 5, 2, 6]);
-    } else {
-      setPartBMax([0, 0, 0, 0]);
-    }
-  }, [selectedCategory]);
-
-  type PartType = "partA" | "partB" | "partC";
-
+  // State for inputs and errors
   const [inputs, setInputs] = useState<{
     partA: string[];
     partB: string[];
@@ -58,6 +66,59 @@ export default function PerformanceEvaluationForm() {
     partC: Array(partCKeys.length).fill(false),
   });
 
+  // --- Mapping descriptions to scores_json keys ---
+  const partBMapping: Record<string, keyof ScoresJSON> = {
+    "Intervening Activities": "intervening",
+    "Significant innovations/contributions that improved the efficiency of unit operations":
+      "innovations",
+    "Awards received within the three-year period": "awards",
+    "Community service in adherence to UP’s mandate and/or membership as a Public Service University (within the three-year period)":
+      "service",
+  };
+
+  const partCMapping: Record<string, keyof ScoresJSON> = {
+    "Punctuality (refer Table PUNCTUALITY)": "punctuality",
+    "Ability to deliver quality outputs on time (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)":
+      "quality",
+    "Ability to work effectively with others as a team (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)":
+      "teamwork",
+  };
+
+  // --- Set Part B max points based on nomination category ---
+  useEffect(() => {
+    const category = reviewContext?.nomination?.category ?? "";
+    if (category === "Non-Teaching Personnel (Senior Level)")
+      setPartBMax([10, 8, 4, 3]);
+    else if (
+      category === "Non-Teaching Personnel (Junior and Industrial Level)"
+    )
+      setPartBMax([12, 5, 2, 6]);
+    else setPartBMax([0, 0, 0, 0]);
+  }, [reviewContext]);
+
+  // --- Prefill inputs dynamically from reviewContext ---
+  useEffect(() => {
+    if (reviewContext?.scores_json) {
+      const { scores_json } = reviewContext;
+
+      const partAValues = partAKeys.map(
+        () => scores_json.ipcr?.toString() ?? ""
+      );
+      const partBValues = partBKeys.map((desc) => {
+        const key = partBMapping[desc];
+        return key ? scores_json[key]?.toString() ?? "" : "";
+      });
+      const partCValues = partCKeys.map((desc) => {
+        const key = partCMapping[desc];
+        return key ? scores_json[key]?.toString() ?? "" : "";
+      });
+
+      setInputs({ partA: partAValues, partB: partBValues, partC: partCValues });
+    }
+  }, [reviewContext]);
+
+  // --- Handle input change ---
+  type PartType = "partA" | "partB" | "partC";
   const handleChange = (part: PartType, index: number, value: string) => {
     let max = 0;
     let min = 0;
@@ -65,26 +126,17 @@ export default function PerformanceEvaluationForm() {
     if (part === "partB") max = partBMax[index] ?? 0;
     if (part === "partC") {
       max = partCMax[index];
-      min = 1; // enforce minimum 1 for Part C
+      min = 1;
     }
 
+    let numericVal: number;
     if (value === "") {
-      setInputs((prev) => {
-        const updated = { ...prev };
-        updated[part][index] = "";
-        return updated;
-      });
-      setErrors((prev) => {
-        const updated = { ...prev };
-        updated[part][index] = false;
-        return updated;
-      });
-      return;
+      numericVal = 0; // default empty value
+    } else {
+      numericVal = Number(value);
+      if (numericVal < min) numericVal = min;
+      if (numericVal > max) numericVal = max;
     }
-
-    let numericVal = Number(value);
-    if (numericVal < min) numericVal = min;
-    if (numericVal > max) numericVal = max;
 
     setInputs((prev) => {
       const updated = { ...prev };
@@ -99,6 +151,7 @@ export default function PerformanceEvaluationForm() {
     });
   };
 
+  // --- Calculate totals ---
   const totalPartA = inputs.partA.reduce(
     (sum, val) => sum + (Number(val) || 0),
     0
@@ -114,6 +167,7 @@ export default function PerformanceEvaluationForm() {
   );
   const overallTotal = totalPartA + totalPartB + totalPartC;
 
+  // --- Render ---
   return (
     <div>
       <div className="max-w-5xl mx-auto bg-[var(--white)] shadow-md rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
@@ -144,14 +198,14 @@ export default function PerformanceEvaluationForm() {
                 <td className="p-3">
                   <input
                     type="number"
+                    value={inputs.partA[idx] ?? ""}
+                    placeholder="0"
+                    min={0}
+                    max={partAMax}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partA[idx] ? "border-red-500" : ""
                     }`}
-                    placeholder="0"
-                    value={inputs.partA[idx]}
                     onChange={(e) => handleChange("partA", idx, e.target.value)}
-                    min={0}
-                    max={partAMax}
                   />
                   {errors.partA[idx] && (
                     <div className="text-red-500 text-xs">Max {partAMax}</div>
@@ -183,14 +237,14 @@ export default function PerformanceEvaluationForm() {
                 <td className="p-3">
                   <input
                     type="number"
+                    value={inputs.partB[idx] ?? ""}
+                    placeholder="0"
+                    min={0}
+                    max={partBMax[idx] ?? 0}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partB[idx] ? "border-red-500" : ""
                     }`}
-                    placeholder="0"
-                    value={inputs.partB[idx]}
                     onChange={(e) => handleChange("partB", idx, e.target.value)}
-                    min={0}
-                    max={partBMax[idx] ?? 0}
                   />
                   {errors.partB[idx] && (
                     <div className="text-red-500 text-xs">
@@ -217,14 +271,14 @@ export default function PerformanceEvaluationForm() {
                 <td className="p-3">
                   <input
                     type="number"
+                    value={inputs.partC[idx] ?? ""}
+                    placeholder="1"
+                    min={1}
+                    max={5}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partC[idx] ? "border-red-500" : ""
                     }`}
-                    placeholder="1"
-                    value={inputs.partC[idx]}
                     onChange={(e) => handleChange("partC", idx, e.target.value)}
-                    min={1}
-                    max={5}
                   />
                   {errors.partC[idx] && (
                     <div className="text-red-500 text-xs">Range 1–5 only</div>
