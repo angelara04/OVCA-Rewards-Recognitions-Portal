@@ -27,7 +27,8 @@ export default function PerformanceEvaluationForm({
 }: {
   reviewContext: ReviewContext | null;
 }) {
-  if (!reviewContext) return <div>Loading...</div>;
+  // loading UI is handled by parent pages (junior/senior)
+  if (!reviewContext) return null;
 
   // Table descriptions
   const partAKeys = ["2022", "2023", "2024 (Jan–Jun)"];
@@ -186,8 +187,11 @@ export default function PerformanceEvaluationForm({
   );
   const overallTotal = totalPartA + totalPartB + totalPartC;
 
-  // --- Determine if inputs should be readonly ---
-  const isReadOnly = reviewContext.status === "completed";
+  // --- Determine if inputs should be readonly/disabled ---
+  // Consider both reviewContext.status and existingReview.status
+  const isReadOnly =
+    (reviewContext as any)?.status === "completed" ||
+    (reviewContext as any)?.existingReview?.status === "completed";
 
   // --- Render ---
   return (
@@ -224,7 +228,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="0"
                     min={0}
                     max={partAMax}
-                    readOnly={isReadOnly}
+                    disabled={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partA[idx] ? "border-red-500" : ""
                     }`}
@@ -264,7 +268,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="0"
                     min={0}
                     max={partBMax[idx] ?? 0}
-                    readOnly={isReadOnly}
+                    disabled={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partB[idx] ? "border-red-500" : ""
                     }`}
@@ -299,7 +303,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="1"
                     min={1}
                     max={5}
-                    readOnly={isReadOnly}
+                    disabled={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partC[idx] ? "border-red-500" : ""
                     }`}
@@ -322,10 +326,18 @@ export default function PerformanceEvaluationForm({
       </div>
 
       <div className="flex justify-end gap-2 items-center font-normal mt-4">
-        <Button size="md" variant="secondary">
+        <Button
+          size="md"
+          variant={isReadOnly ? "disabled" : "secondary"}
+          disabled={isReadOnly}
+        >
           Reset Form
         </Button>
-        <Button size="md" variant="submit">
+        <Button
+          size="md"
+          variant={isReadOnly ? "disabled" : "submit"}
+          disabled={isReadOnly}
+        >
           Submit Form
         </Button>
       </div>

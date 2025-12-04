@@ -17,8 +17,8 @@ export default function JuniorPage() {
   const nomineeId = searchParams.get("nomineeid") || "";
 
   const [showModal, setShowModal] = useState(false);
-
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   //REVIEW
   const [reviewContext, setReviewContext] = useState<any | null>(null);
@@ -27,11 +27,13 @@ export default function JuniorPage() {
     // Only run if nomineeId exists
     if (!nomineeId) {
       setReviewContext(null);
+      setLoading(false);
       return;
     }
 
     // IIFE to allow async call in useEffect
     (async () => {
+      setLoading(true);
       try {
         const ctx = await getReviewContext(nomineeId);
 
@@ -50,6 +52,8 @@ export default function JuniorPage() {
           err
         );
         setReviewContext(null);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [nomineeId]);
@@ -88,88 +92,106 @@ export default function JuniorPage() {
   ];
 
   return (
-    <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
-        <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">
-            Nominee Evaluation
-          </h1>
-          <p className="text-base text-[var(--dark-grey)]">
-            Official scoring forms for the 2025 UPMin Gawad Tsansellor Para sa
-            Pinakamahusay na Empleyadong Administratibo
-          </p>
+    <Section
+      width="w-full"
+      height="min-h-screen"
+      alignment="items-center justify-center p-10"
+    >
+      {loading ? (
+        <div className="flex items-center justify-center p-4 flex-col gap-2">
+          <div className="w-8 h-8 border-4 border-gray-300 border-t-4 border-t-[var(--maroon)] rounded-full animate-spin"></div>
+          <span className="text-[var(--dark-grey)]">Loading...</span>
         </div>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => router.push("/committee/committee-scoring")}
-        >
-          <div className="px-5 py-1">Go Back</div>
-        </Button>
-      </div>
-      <Section
-        width="w-full"
-        height="h-auto"
-        alignment="p-10 bg-[var(--category-grey)] gap-[24px]"
-      >
-        {/* Header */}
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-[20px] font-bold">
-            Non-Teaching Personnel (Junior and Industrial Level)
-          </h1>
-        </div>
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+            <div>
+              <h1 className="text-[28px] font-bold text-[var(--black)]">
+                Nominee Evaluation
+              </h1>
+              <p className="text-base text-[var(--dark-grey)]">
+                Official scoring forms for the 2025 UPMin Gawad Tsansellor Para
+                sa Pinakamahusay na Empleyadong Administratibo
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => router.push("/committee/committee-scoring")}
+            >
+              <div className="px-5 py-1">Go Back</div>
+            </Button>
+          </div>
 
-        {/* Nominee Info */}
-        <InputField
-          id="nominee-name"
-          label="Name of Nominee"
-          placeholder="Enter Nominee Name"
-          value={nomineeName}
-        />
-
-        <InputField
-          id="nominee-id"
-          label="Nominee ID"
-          placeholder="Nominee ID"
-          value={nomineeId}
-        />
-
-        <CheckboxGroup
-          label="Category"
-          name="category"
-          options={options}
-          values={selectedValues}
-          onChange={handleCheckboxChange}
-        />
-
-        {/* Nominee's Submitted Requirements and Documents */}
-        <div className="py-6 flex flex-col gap-2">
-          <h1 className="text-[20px] font-bold">
-            Nominee’s Submitted Requirements and Documents
-          </h1>
-          <span className="text-[15px]">
-            Nominee’s Submitted Requirements and Documents
-          </span>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setShowModal(true)}
-            className="py-2"
+          <Section
+            width="w-full"
+            height="h-auto"
+            alignment="p-10 bg-[var(--category-grey)] gap-[24px]"
           >
-            View Documents
-          </Button>
-          {showModal && (
-            <UploadedFilesModal onClose={() => setShowModal(false)} />
-          )}
-        </div>
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-[20px] font-bold">
+                Non-Teaching Personnel (Junior and Industrial Level)
+              </h1>
+            </div>
 
-        {reviewContext ? (
-          <PerformanceEvaluationForm reviewContext={reviewContext} />
-        ) : (
-          <div>Loading review data...</div>
-        )}
-      </Section>
+            {/* Nominee Info */}
+            <InputField
+              id="nominee-name"
+              label="Name of Nominee"
+              placeholder="Enter Nominee Name"
+              value={nomineeName}
+            />
+
+            <InputField
+              id="nominee-id"
+              label="Nominee ID"
+              placeholder="Nominee ID"
+              value={nomineeId}
+            />
+
+            <CheckboxGroup
+              label="Category"
+              name="category"
+              options={options}
+              values={selectedValues}
+              onChange={handleCheckboxChange}
+              disabled={
+                (reviewContext as any)?.status === "completed" ||
+                (reviewContext as any)?.existingReview?.status === "completed"
+              }
+            />
+
+            {/* Nominee's Submitted Requirements and Documents */}
+            <div className="py-6 flex flex-col gap-2">
+              <h1 className="text-[20px] font-bold">
+                Nominee’s Submitted Requirements and Documents
+              </h1>
+              <span className="text-[15px]">
+                Nominee’s Submitted Requirements and Documents
+              </span>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setShowModal(true)}
+                className="py-2"
+              >
+                View Documents
+              </Button>
+              {showModal && (
+                <UploadedFilesModal
+                  onClose={() => setShowModal(false)}
+                  attachments={
+                    (reviewContext as any)?.nomination?.attachments || []
+                  }
+                />
+              )}
+            </div>
+            <PerformanceEvaluationForm reviewContext={reviewContext} />
+          </Section>
+        </>
+      )}
     </Section>
   );
 }
