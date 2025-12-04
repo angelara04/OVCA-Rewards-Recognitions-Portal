@@ -71,10 +71,14 @@ export default function JuniorPage() {
     const categoryParam = searchParams.get("category") || "";
     if (categoryParam) {
       // options values: 'industrial' or 'junior'
-      if (categoryParam === "industrial" || categoryParam === "junior") {
+      if (
+        categoryParam === "Industrial and Allied Professionals (SG 1 - 8)" ||
+        categoryParam === "Junior Professionals (SG 1 - 8)"
+      ) {
         setSelectedValues([categoryParam]);
       }
     }
+
     // run on mount / when searchParams change
   }, [searchParams]);
 
@@ -86,9 +90,12 @@ export default function JuniorPage() {
   const options = [
     {
       label: "Industrial and Allied Professionals (SG 1 - 8)",
-      value: "industrial",
+      value: "Industrial and Allied Professionals (SG 1 - 8)",
     },
-    { label: "Junior Professionals (SG 1 - 8)", value: "junior" },
+    {
+      label: "Junior Professionals (SG 1 - 8)",
+      value: "Junior Professionals (SG 1 - 8)",
+    },
   ];
 
   return (

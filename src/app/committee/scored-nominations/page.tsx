@@ -114,6 +114,24 @@ export default function Page() {
     { key: "status", label: "Status" },
   ];
 
+  const getCategorySlug = (category: string) => {
+    if (!category || category.trim() === "") return "unknown";
+    switch (category.trim()) {
+      case "Non-Teaching Personnel (Junior and Industrial Level)":
+        return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
+        return "junior";
+      case "Non-Teaching Personnel (Senior Level)":
+        return "senior";
+      case "Non-Teaching Personnel (Non-Supervisory Level)":
+        return "non-supervisory";
+      default:
+        return category.toLowerCase().replace(/\s+/g, "-");
+    }
+  };
+
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
@@ -215,35 +233,37 @@ export default function Page() {
                     if (!sel) return setOpenDropdownIndex(null);
 
                     // derive slug from category
-                    const category = sel.category || "";
-                    let slug = category
-                      .toLowerCase()
-                      .trim()
-                      .replace(/[^a-z0-9\s-]/g, "")
-                      .replace(/\s+/g, "-");
+                    // const category = sel.category || "";
+                    // let slug = category
+                    //   .toLowerCase()
+                    //   .trim()
+                    //   .replace(/[^a-z0-9\s-]/g, "")
+                    //   .replace(/\s+/g, "-");
 
-                    // normalize known categories
-                    if (
-                      category ===
-                      "Non-Teaching Personnel (Junior and Industrial Level)"
-                    )
-                      slug = "junior";
-                    if (category === "Non-Teaching Personnel (Senior Level)")
-                      slug = "senior";
-                    if (
-                      category ===
-                      "Non-Teaching Personnel (Non-Supervisory Level)"
-                    )
-                      slug = "non-supervisory";
+                    // // normalize known categories
+                    // if (
+                    //   category ===
+                    //   "Non-Teaching Personnel (Junior and Industrial Level)"
+                    // )
+                    //   slug = "junior";
+                    // if (category === "Non-Teaching Personnel (Senior Level)")
+                    //   slug = "senior";
+                    // if (
+                    //   category ===
+                    //   "Non-Teaching Personnel (Non-Supervisory Level)"
+                    // )
+                    //   slug = "non-supervisory";
+
+                    const categorySlug = getCategorySlug(sel.category);
 
                     const id = sel.nomineeid;
                     const params = new URLSearchParams();
                     params.set("nomineeid", sel.nomineeid);
                     params.set("nomineename", sel.nomineename);
-                    params.set("category", slug);
+                    params.set("category", sel.category);
 
                     router.push(
-                      `/committee/committee-scoring/${slug}/${id}?${params.toString()}`
+                      `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
                     );
                     setOpenDropdownIndex(null);
                   },

@@ -316,7 +316,7 @@ export default function CommitteeScoring() {
                           const params = new URLSearchParams();
                           params.set("nomineeid", item.nomineeid);
                           params.set("nomineename", item.nomineename);
-                          params.set("category", categorySlug);
+                          params.set("category", item.category);
 
                           router.push(
                             `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`

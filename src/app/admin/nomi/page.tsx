@@ -172,7 +172,7 @@ export default function NominationForm() {
         setBanner({ title: "Success", message: res.message, variant: "success", duration: 4000 });
         // Reset form logic...
         if (actionValue === "submit" || !editingId) {
-             e.currentTarget.reset();
+            //  e.currentTarget.reset();
              setFiles([]);
              setConsentFiles([]);
              setExistingAttachments([]);

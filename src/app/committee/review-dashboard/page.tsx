@@ -103,12 +103,13 @@ export default function ReviewDashboardPage() {
   const totalCount = data.length;
 
   const getCategorySlug = (category: string) => {
-    if (!category || category.trim() === "") {
-      return "unknown";
-    }
-
+    if (!category || category.trim() === "") return "unknown";
     switch (category.trim()) {
       case "Non-Teaching Personnel (Junior and Industrial Level)":
+        return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
         return "junior";
       case "Non-Teaching Personnel (Senior Level)":
         return "senior";
@@ -227,7 +228,7 @@ export default function ReviewDashboardPage() {
                     const params = new URLSearchParams();
                     params.set("nomineeid", item.nomineeid);
                     params.set("nomineename", item.nomineename);
-                    params.set("category", categorySlug);
+                    params.set("category", item.category);
 
                     // If completed → redirect to view mode (also include mode)
                     if (item.status === "Completed") {

@@ -42,6 +42,10 @@ export default function PendingReviewPage() {
     switch (category.trim()) {
       case "Non-Teaching Personnel (Junior and Industrial Level)":
         return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
+        return "junior";
       case "Non-Teaching Personnel (Senior Level)":
         return "senior";
       case "Non-Teaching Personnel (Non-Supervisory Level)":
@@ -218,7 +222,7 @@ export default function PendingReviewPage() {
                     const params = new URLSearchParams();
                     params.set("nomineeid", item.nomineeid);
                     params.set("nomineename", item.nomineename);
-                    params.set("category", categorySlug);
+                    params.set("category", item.category);
 
                     router.push(
                       `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
