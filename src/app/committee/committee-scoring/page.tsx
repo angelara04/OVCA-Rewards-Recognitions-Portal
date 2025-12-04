@@ -92,7 +92,22 @@ export default function CommitteeScoring() {
     let result = data;
 
     if (selectedCategory !== "Select Category") {
-      result = result.filter((d) => d.category === selectedCategory);
+      if (
+        selectedCategory ===
+        "Non-Teaching Personnel (Junior and Industrial Level)"
+      ) {
+        // when the generic junior+industrial option is selected, include both
+        // specific junior labels as well as the generic label
+        result = result.filter((d) =>
+          [
+            "Non-Teaching Personnel (Junior and Industrial Level)",
+            "Junior Professionals (SG 1 - 8)",
+            "Industrial and Allied Professionals (SG 1 - 8)",
+          ].includes(d.category)
+        );
+      } else {
+        result = result.filter((d) => d.category === selectedCategory);
+      }
     }
 
     if (searchQuery.trim()) {
@@ -120,24 +135,33 @@ export default function CommitteeScoring() {
 
   const hasResults = filteredData.length > 0;
 
+  const getCategorySlug = (category: string) => {
+    if (!category || category.trim() === "") return "unknown";
+    switch (category.trim()) {
+      case "Non-Teaching Personnel (Junior and Industrial Level)":
+        return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
+        return "junior";
+      case "Non-Teaching Personnel (Senior Level)":
+        return "senior";
+      case "Non-Teaching Personnel (Non-Supervisory Level)":
+        return "non-supervisory";
+      default:
+        return category.toLowerCase().replace(/\s+/g, "-");
+    }
+  };
+
   // Navigate to scoring
   const handleEvaluate = (nominee: Nominee) => {
-    let path = "";
-
-    switch (nominee.category) {
-      case "Non-Teaching Personnel (Junior and Industrial Level)":
-        path = `/committee/committee-scoring/junior/${nominee.nomineeid}`;
-        break;
-      case "Non-Teaching Personnel (Senior Level)":
-        path = `/committee/committee-scoring/senior/${nominee.nomineeid}`;
-        break;
-      case "Non-Teaching Personnel (Non-Supervisory Level)":
-        path = `/committee/committee-scoring/non-supervisory/${nominee.nomineeid}`;
-        break;
-      default:
-        console.warn("Unknown category:", nominee.category);
-        return;
+    const slug = getCategorySlug(nominee.category);
+    if (!slug || slug === "unknown") {
+      console.warn("Unknown category:", nominee.category);
+      return;
     }
+
+    const path = `/committee/committee-scoring/${slug}/${nominee.nomineeid}`;
 
     router.push(
       `${path}?nomineeid=${encodeURIComponent(
@@ -264,9 +288,20 @@ export default function CommitteeScoring() {
                         label: "View",
                         color: "text-black",
                         onClickAction: () => {
-                          const selectedNominee =
-                            filteredData[openDropdownIndex!];
-                          handleView(selectedNominee);
+                          const item = filteredData[openDropdownIndex!];
+                          const id = item.nomineeid;
+                          const categorySlug = getCategorySlug(item.category);
+
+                          const params = new URLSearchParams();
+                          params.set("nomineeid", item.nomineeid);
+                          params.set("nomineename", item.nomineename);
+                          params.set("category", categorySlug);
+                          params.set("mode", "view");
+
+                          router.push(
+                            `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
+                          );
+
                           setOpenDropdownIndex(null);
                         },
                       }
@@ -274,9 +309,19 @@ export default function CommitteeScoring() {
                         label: "Evaluate",
                         color: "text-black",
                         onClickAction: () => {
-                          const selectedNominee =
-                            filteredData[openDropdownIndex!];
-                          handleEvaluate(selectedNominee);
+                          const item = filteredData[openDropdownIndex!];
+                          const id = item.nomineeid;
+                          const categorySlug = getCategorySlug(item.category);
+
+                          const params = new URLSearchParams();
+                          params.set("nomineeid", item.nomineeid);
+                          params.set("nomineename", item.nomineename);
+                          params.set("category", categorySlug);
+
+                          router.push(
+                            `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
+                          );
+
                           setOpenDropdownIndex(null);
                         },
                       },

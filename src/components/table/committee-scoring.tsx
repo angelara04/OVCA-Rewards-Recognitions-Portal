@@ -3,6 +3,11 @@ import Button from "../button";
 
 interface ScoresJSON {
   ipcr?: number;
+  meta_ipcr_breakdown?: {
+    y2022?: number;
+    y2023?: number;
+    y2024?: number;
+  };
   intervening?: number;
   innovations?: number;
   awards?: number;
@@ -118,8 +123,11 @@ export default function PerformanceEvaluationForm({
       parsedScores = {};
     }
 
-    const partAValues = partAKeys.map(
-      () => parsedScores.ipcr?.toString() ?? ""
+    // Prefer individual yearly IPCR values if present in meta_ipcr_breakdown.
+    // Default to empty strings when missing.
+    const meta = (parsedScores as any)?.meta_ipcr_breakdown;
+    const partAValues = [meta?.y2022, meta?.y2023, meta?.y2024].map((v) =>
+      v !== undefined && v !== null ? v.toString() : ""
     );
     const partBValues = partBKeys.map((desc) => {
       const key = partBMapping[desc];
@@ -176,7 +184,9 @@ export default function PerformanceEvaluationForm({
     (sum, val) => sum + (Number(val) || 0),
     0
   );
-  const avgPartA = (totalPartA / inputs.partA.length).toFixed(2);
+  const avgPartA = inputs.partA.every((v) => v === "")
+    ? ""
+    : (totalPartA / inputs.partA.length).toFixed(2);
   const totalPartB = inputs.partB.reduce(
     (sum, val) => sum + (Number(val) || 0),
     0
