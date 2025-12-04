@@ -19,6 +19,7 @@ interface Nomination {
 interface ReviewContext {
   scores_json?: ScoresJSON;
   nomination?: Nomination | null;
+  status?: "completed" | "in-progress";
 }
 
 export default function PerformanceEvaluationForm({
@@ -26,6 +27,8 @@ export default function PerformanceEvaluationForm({
 }: {
   reviewContext: ReviewContext | null;
 }) {
+  if (!reviewContext) return <div>Loading...</div>;
+
   // Table descriptions
   const partAKeys = ["2022", "2023", "2024 (Jan–Jun)"];
   const partBKeys = [
@@ -96,27 +99,44 @@ export default function PerformanceEvaluationForm({
     else setPartBMax([0, 0, 0, 0]);
   }, [reviewContext]);
 
-  // --- Prefill inputs dynamically from reviewContext ---
   useEffect(() => {
-    if (reviewContext?.scores_json) {
-      const { scores_json } = reviewContext;
+    // support both shapes: reviewContext.existingReview.scores_json or reviewContext.scores_json
+    const maybeExisting = (reviewContext as any)?.existingReview;
+    const rawScores =
+      maybeExisting?.scores_json ?? (reviewContext as any)?.scores_json;
+    if (!rawScores) return;
 
-      const partAValues = partAKeys.map(
-        () => scores_json.ipcr?.toString() ?? ""
-      );
-      const partBValues = partBKeys.map((desc) => {
-        const key = partBMapping[desc];
-        return key ? scores_json[key]?.toString() ?? "" : "";
-      });
-      const partCValues = partCKeys.map((desc) => {
-        const key = partCMapping[desc];
-        return key ? scores_json[key]?.toString() ?? "" : "";
-      });
-
-      setInputs({ partA: partAValues, partB: partBValues, partC: partCValues });
+    let parsedScores: ScoresJSON = {};
+    try {
+      parsedScores =
+        typeof rawScores === "string"
+          ? (JSON.parse(rawScores) as ScoresJSON)
+          : (rawScores as ScoresJSON);
+    } catch (err) {
+      console.error("Failed to parse scores_json:", err, rawScores);
+      parsedScores = {};
     }
-  }, [reviewContext]);
 
+    const partAValues = partAKeys.map(
+      () => parsedScores.ipcr?.toString() ?? ""
+    );
+    const partBValues = partBKeys.map((desc) => {
+      const key = partBMapping[desc];
+      return key ? parsedScores[key]?.toString() ?? "" : "";
+    });
+    const partCValues = partCKeys.map((desc) => {
+      const key = partCMapping[desc];
+      return key ? parsedScores[key]?.toString() ?? "" : "";
+    });
+
+    setInputs({ partA: partAValues, partB: partBValues, partC: partCValues });
+
+    // Debug logs
+    console.log("Parsed scores_json:", parsedScores);
+    console.log("Part A Values:", partAValues);
+    console.log("Part B Values:", partBValues);
+    console.log("Part C Values:", partCValues);
+  }, [reviewContext]);
   // --- Handle input change ---
   type PartType = "partA" | "partB" | "partC";
   const handleChange = (part: PartType, index: number, value: string) => {
@@ -130,9 +150,8 @@ export default function PerformanceEvaluationForm({
     }
 
     let numericVal: number;
-    if (value === "") {
-      numericVal = 0; // default empty value
-    } else {
+    if (value === "") numericVal = 0;
+    else {
       numericVal = Number(value);
       if (numericVal < min) numericVal = min;
       if (numericVal > max) numericVal = max;
@@ -166,6 +185,9 @@ export default function PerformanceEvaluationForm({
     0
   );
   const overallTotal = totalPartA + totalPartB + totalPartC;
+
+  // --- Determine if inputs should be readonly ---
+  const isReadOnly = reviewContext.status === "completed";
 
   // --- Render ---
   return (
@@ -202,6 +224,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="0"
                     min={0}
                     max={partAMax}
+                    readOnly={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partA[idx] ? "border-red-500" : ""
                     }`}
@@ -241,6 +264,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="0"
                     min={0}
                     max={partBMax[idx] ?? 0}
+                    readOnly={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partB[idx] ? "border-red-500" : ""
                     }`}
@@ -275,6 +299,7 @@ export default function PerformanceEvaluationForm({
                     placeholder="1"
                     min={1}
                     max={5}
+                    readOnly={isReadOnly}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partC[idx] ? "border-red-500" : ""
                     }`}

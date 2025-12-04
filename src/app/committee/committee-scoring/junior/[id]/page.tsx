@@ -164,7 +164,11 @@ export default function JuniorPage() {
           )}
         </div>
 
-        <PerformanceEvaluationForm reviewContext={reviewContext} />
+        {reviewContext ? (
+          <PerformanceEvaluationForm reviewContext={reviewContext} />
+        ) : (
+          <div>Loading review data...</div>
+        )}
       </Section>
     </Section>
   );
