@@ -13,7 +13,7 @@ export default async function HrLayout({
   // fetch authenticated user's profile on the server and pass name to Greeting
   let Fname = "Your Name";
 
-  try {
+ 
     const supabase = await createClient();
     const { data: authData } = await supabase.auth.getUser();
     if (authData?.user) {
@@ -25,10 +25,7 @@ export default async function HrLayout({
 
       if (profile?.name) Fname = profile.name;
     }
-  } catch (e) {
-    console.error("Could not load profile for layout:", e);
-  }
-
+    
   return (
     <div className="flex flex-col w-full h-full min-h-screen">
       {/* Header */}
