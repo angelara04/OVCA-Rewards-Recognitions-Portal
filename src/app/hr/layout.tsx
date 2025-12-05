@@ -1,14 +1,33 @@
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar/sidebar";
 import Greeting from "@/components/greetings/greeting";
+import { createClient } from "@/utils/supabase/server";
 
-export default function CommitteeLayout({
+export default async function HrLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const role = "hr";
-  const Fname = "Joan Smith"; // temporary placeholder
+
+  // fetch authenticated user's profile on the server and pass name to Greeting
+  let Fname = "Your Name";
+
+  try {
+    const supabase = await createClient();
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", authData.user.id)
+        .maybeSingle();
+
+      if (profile?.name) Fname = profile.name;
+    }
+  } catch (e) {
+    console.error("Could not load profile for layout:", e);
+  }
 
   return (
     <div className="flex flex-col w-full h-full min-h-screen">
@@ -17,15 +36,12 @@ export default function CommitteeLayout({
         <Header />
       </div>
 
-      {/* Greeting */}
+      {/* Greeting - now receives the logged-in user's name */}
       <Greeting Fname={Fname} role={role} />
 
       {/* Sidebar + Main content */}
       <div className="flex flex-row w-full h-full gap-2 p-5">
-        {/* Sidebar stays fixed */}
         <Sidebar role={role} />
-
-        {/* Main content */}
         <div className="flex-1 min-w-0 h-full">{children}</div>
       </div>
     </div>
