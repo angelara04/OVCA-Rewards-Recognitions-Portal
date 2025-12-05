@@ -23,6 +23,7 @@ const ROLE_PERMISSIONS = {
     ],
     committee: [
         '/committee',
+        '/nominators',
     ],
     hr: [
         '/hr',
@@ -159,7 +160,7 @@ export async function middleware(request: NextRequest) {
         let isPathAuthorized = isPathAllowed(path, allowedRoutes);
         
         if (!isPathAuthorized) {
-            // console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
+            console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
             const url = request.nextUrl.clone()
             url.pathname = '/unauthorized' 
             return NextResponse.redirect(url)

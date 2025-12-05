@@ -89,6 +89,14 @@ export async function getReviewContext(nominationId: string) {
 
   if (!nomination) return { error: "Nomination not found" };
 
+  // --- 🔥 NEW CONSTRAINT: Block Reviewing Own Nomination ---
+  if (nomination.created_by === userId) {
+    return { 
+      error: "Conflict of Interest: You cannot review a nomination you submitted yourself." 
+    };
+  }
+  // ---------------------------------------------------------
+
   // Fetch Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
@@ -134,7 +142,7 @@ export async function getReviewContext(nominationId: string) {
   };
 }
 
-// --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
+// --- UPDATED SAVE ACTION WITH CONSTRAINT CHECK ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -143,6 +151,18 @@ export async function saveCommitteeReview(formData: FormData) {
   const nominationId = formData.get("nomination_id") as string
   const action = formData.get("action") as string
   
+  // --- 🔥 NEW SECURITY CHECK: Verify Ownership Before Saving ---
+  const { data: checkNom } = await supabase
+    .from("nominations")
+    .select("created_by")
+    .eq("id", nominationId)
+    .single();
+    
+  if (checkNom && checkNom.created_by === auth.user.id) {
+     return { success: false, message: "Action Blocked: You cannot review your own nomination." }
+  }
+  // -----------------------------------------------------------
+
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
@@ -155,14 +175,14 @@ export async function saveCommitteeReview(formData: FormData) {
     y2022: parseFloat(rawData["y2022"] as string) || 0,
     y2023: parseFloat(rawData["y2023"] as string) || 0,
     y2024: parseFloat(rawData["y2024"] as string) || 0,
-    supervisor: rawData["supervisor"] as string || "", // New field
-    unit: rawData["unit"] as string || ""              // New field
+    supervisor: rawData["supervisor"] as string || "", 
+    unit: rawData["unit"] as string || ""              
   }
 
   // 2. Filter out non-score keys (Critical to prevent math errors)
   const excludedKeys = [
       "nomination_id", "action", "comments", "recommendation", 
-      "y2022", "y2023", "y2024", "supervisor", "unit" // All metadata inputs excluded
+      "y2022", "y2023", "y2024", "supervisor", "unit"
   ]; 
 
   Object.keys(rawData).forEach((key) => {
@@ -256,7 +276,6 @@ export async function getNominationResults(nominationId: string) {
       attachments(*),
       nominator:profiles!created_by ( name ) 
     `)
-    // NOTE: Using !created_by ensures we follow the foreign key to the creator
     .eq("id", nominationId)
     .single()
 
