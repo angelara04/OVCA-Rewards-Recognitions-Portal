@@ -134,7 +134,7 @@ export async function getReviewContext(nominationId: string) {
   };
 }
 
-// --- UPDATED SAVE ACTION WITH IPCR LOGIC ---
+// --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -143,34 +143,38 @@ export async function saveCommitteeReview(formData: FormData) {
   const nominationId = formData.get("nomination_id") as string
   const action = formData.get("action") as string
   
-  // Parse scores
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
-  // Use 'any' to allow storing the metadata object structure
+  // Changed to 'any' to allow saving the metadata object
   const scoresJson: Record<string, any> = {}
   let myTotalScore = 0
 
-  // 1. Capture Breakdown Data for restoration later (The 3 years)
+  // 1. Capture Breakdown Data + Supervisor Details
   const breakdownData = {
     y2022: parseFloat(rawData["y2022"] as string) || 0,
     y2023: parseFloat(rawData["y2023"] as string) || 0,
     y2024: parseFloat(rawData["y2024"] as string) || 0,
+    supervisor: rawData["supervisor"] as string || "", // New field
+    unit: rawData["unit"] as string || ""              // New field
   }
 
-  // 2. Filter out non-score keys (including the breakdown inputs)
-  const excludedKeys = ["nomination_id", "action", "comments", "recommendation", "y2022", "y2023", "y2024"]; 
+  // 2. Filter out non-score keys (Critical to prevent math errors)
+  const excludedKeys = [
+      "nomination_id", "action", "comments", "recommendation", 
+      "y2022", "y2023", "y2024", "supervisor", "unit" // All metadata inputs excluded
+  ]; 
 
   Object.keys(rawData).forEach((key) => {
     if (!excludedKeys.includes(key)) {
-      // Use parseFloat to preserve decimals
+      // Use parseFloat to preserve decimals (e.g. 53.33)
       const score = parseFloat(rawData[key] as string) || 0
       scoresJson[key] = score
       myTotalScore += score
     }
   })
 
-  // 3. Inject Breakdown Data as Metadata into the JSON
+  // 3. Inject Breakdown Data as Metadata
   scoresJson["meta_ipcr_breakdown"] = breakdownData;
 
   // Round total score to 2 decimal places for clean DB storage
@@ -178,7 +182,7 @@ export async function saveCommitteeReview(formData: FormData) {
 
   const status = action === "submit" ? "completed" : "in_progress"
 
-  // Save the individual review
+  // 1. Save the individual review
   const { error } = await supabase
     .from("reviews")
     .upsert({
@@ -193,7 +197,7 @@ export async function saveCommitteeReview(formData: FormData) {
 
   if (error) return { success: false, message: "Failed to save review" }
 
-  // IF SUBMITTING: Calculate Final Verdict
+  // 2. IF SUBMITTING: Check if we need to calculate the Final Verdict
   if (action === "submit") {
     
     // Count how many finished reviews exist now
@@ -245,21 +249,18 @@ export async function getNominationResults(nominationId: string) {
   const supabase = await createClient()
 
   // 1. Fetch Nomination Details + Attachments + Nominator Name
-  // FIX: Switched to '!created_by' which is the standard link to profiles.
-  const { data: nomination, error } = await supabase
+  const { data: nomination } = await supabase
     .from("nominations")
     .select(`
       *, 
       attachments(*),
       nominator:profiles!created_by ( name ) 
     `)
+    // NOTE: Using !created_by ensures we follow the foreign key to the creator
     .eq("id", nominationId)
     .single()
 
-  if (error || !nomination) {
-    console.error("Fetch Error:", error);
-    return { error: "Nomination not found" }
-  }
+  if (!nomination) return { error: "Nomination not found" }
 
   // 2. Fetch the Rubric
   const { data: rubric } = await supabase
