@@ -1,100 +1,45 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import Button from "../button";
+import React from "react";
+
+// Updated Props Interface: REMOVED IPCR
+interface PerformanceEvaluationFormProps {
+  reviewContext?: any | null;
+  scores: Record<string, number>;
+  setScores: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  comments: string;
+  setComments: React.Dispatch<React.SetStateAction<string>>;
+  isLocked: boolean;
+}
 
 export default function PerformanceEvaluationForm_NonSupervisory({
   reviewContext,
-}: {
-  reviewContext?: any | null;
-}) {
-  // Treat completed status as read-only/disabled
-  const isReadOnly =
-    (reviewContext as any)?.status === "completed" ||
-    (reviewContext as any)?.existingReview?.status === "completed";
+  scores,
+  setScores,
+  comments,
+  setComments,
+  isLocked,
+}: PerformanceEvaluationFormProps) {
+  
   const indicators = [
     "Adopts new strategies in accomplishing work by completing tasks ahead of schedule (with certification from immediate supervisor)",
     "Ability to deliver quality outputs on time (with certification from immediate supervisor)",
     "Ability to work effectively with others as a team (with certification from immediate supervisor)",
   ];
 
-  const [ratings, setRatings] = useState<number[]>(
-    Array(indicators.length).fill(0)
-  );
-  const [comments, setComments] = useState("");
-  const [totalScore, setTotalScore] = useState(0);
-
-  useEffect(() => {
-    // Optionally prefill from existingReview.scores_json if present
-    console.log("Non-supervisory: reviewContext prop:", reviewContext);
-    const maybeExisting = (reviewContext as any)?.existingReview;
-    const raw =
-      maybeExisting?.scores_json ?? (reviewContext as any)?.scores_json;
-    if (!raw) return;
-
-    console.log("Non-supervisory: raw scores_json:", raw);
-    try {
-      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      console.log("Non-supervisory: parsed scores_json:", parsed);
-
-      // 1) If parsed contains an array 'ratings' use it directly
-      if (Array.isArray(parsed.ratings)) {
-        const vals = parsed.ratings.map((r: any) => Number(r) || 0);
-        const padded = [...vals].slice(0, indicators.length);
-        while (padded.length < indicators.length) padded.push(0);
-        setRatings(padded);
-        setTotalScore(padded.reduce((a, b) => a + b, 0));
-      } else if (Array.isArray(parsed)) {
-        // 2) If parsed itself is an array, use numeric entries
-        const vals = parsed.map((r: any) => Number(r) || 0);
-        const padded = [...vals].slice(0, indicators.length);
-        while (padded.length < indicators.length) padded.push(0);
-        setRatings(padded);
-        setTotalScore(padded.reduce((a, b) => a + b, 0));
-      } else if (parsed && typeof parsed === "object") {
-        // 3) Extract numeric-like values from object in key order as a best-effort
-        const numericValues: number[] = Object.keys(parsed)
-          .sort()
-          .map((k) => {
-            const v = (parsed as any)[k];
-            if (typeof v === "number") return v;
-            if (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v)))
-              return Number(v);
-            return null;
-          })
-          .filter((v): v is number => v !== null)
-          .map((n) => Math.max(0, Math.min(10, Math.round(n))));
-
-        if (numericValues.length > 0) {
-          const padded = numericValues.slice(0, indicators.length);
-          while (padded.length < indicators.length) padded.push(0);
-          setRatings(padded);
-          setTotalScore(padded.reduce((a, b) => a + b, 0));
-        }
-
-        // also pick up comments if present
-        if (typeof parsed.comments === "string") setComments(parsed.comments);
-      }
-    } catch (err) {
-      console.warn("Failed to parse non-supervisory scores_json", err);
-    }
-  }, [reviewContext]);
-
   const handleRatingChange = (index: number, value: number) => {
-    const updated = [...ratings];
-    updated[index] = value;
-    setRatings(updated);
-    setTotalScore(updated.reduce((a, b) => a + b, 0));
+    setScores((prev) => ({
+      ...prev,
+      [`rating_${index}`]: value,
+    }));
   };
 
-  const handleReset = () => {
-    setRatings(Array(indicators.length).fill(0));
-    setComments("");
-    setTotalScore(0);
-  };
+  const ratingsTotal = indicators.reduce((sum, _, i) => {
+    return sum + (scores[`rating_${i}`] || 0);
+  }, 0);
 
   return (
     <div>
-      <div className="max-w-5xl mx-auto  rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
+      <div className="max-w-5xl mx-auto rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-[var(--maroon)] text-white">
@@ -107,32 +52,42 @@ export default function PerformanceEvaluationForm_NonSupervisory({
             </tr>
           </thead>
           <tbody>
+            {/* INDICATORS SECTION */}
+            <tr className="bg-[var(--grey)]">
+              <td colSpan={2} className="font-semibold p-3">
+                Behavioral Indicators
+              </td>
+            </tr>
             {indicators.map((indicator, i) => (
               <tr key={i} className="border-b border-[var(--outline-grey)]">
                 <td className="p-4 align-top ">{indicator}</td>
                 <td className="p-4 text-center">
-                  <div className="flex items-center justify-center gap-2">
-                    {[...Array(10)].map((_, j) => (
-                      <label
-                        key={j}
-                        className={`flex flex-col items-center text-xs ${
-                          isReadOnly ? "opacity-60" : ""
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`rating-${i}`}
-                          value={j + 1}
-                          checked={ratings[i] === j + 1}
-                          onChange={() => handleRatingChange(i, j + 1)}
-                          disabled={isReadOnly}
-                          className={`w-[17px] h-[17px] m-2 accent-[var(--maroon)] ${
-                            isReadOnly ? "cursor-not-allowed" : "cursor-pointer"
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {[...Array(10)].map((_, j) => {
+                      const val = j + 1;
+                      const currentRating = scores[`rating_${i}`];
+                      return (
+                        <label
+                          key={j}
+                          className={`flex flex-col items-center text-xs ${
+                            isLocked ? "opacity-60" : ""
                           }`}
-                        />
-                        {j + 1}
-                      </label>
-                    ))}
+                        >
+                          <input
+                            type="radio"
+                            name={`rating-${i}`}
+                            value={val}
+                            checked={currentRating === val}
+                            onChange={() => handleRatingChange(i, val)}
+                            disabled={isLocked}
+                            className={`w-[17px] h-[17px] m-2 accent-[var(--maroon)] ${
+                              isLocked ? "cursor-not-allowed" : "cursor-pointer"
+                            }`}
+                          />
+                          {val}
+                        </label>
+                      );
+                    })}
                   </div>
                 </td>
               </tr>
@@ -146,11 +101,12 @@ export default function PerformanceEvaluationForm_NonSupervisory({
                 <textarea
                   value={comments}
                   onChange={(e) => setComments(e.target.value)}
-                  disabled={isReadOnly}
-                  className={`w-[81%] border border-[var(--outline-grey)] bg-white rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--maroon)] ${
-                    isReadOnly ? "opacity-60 cursor-not-allowed" : ""
+                  disabled={isLocked}
+                  className={`w-[95%] border border-[var(--outline-grey)] bg-white rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--maroon)] ${
+                    isLocked ? "opacity-60 cursor-not-allowed" : ""
                   }`}
                   rows={3}
+                  placeholder="Enter remarks..."
                 />
               </td>
             </tr>
@@ -158,28 +114,9 @@ export default function PerformanceEvaluationForm_NonSupervisory({
         </table>
       </div>
 
-      {/* Total Points Section */}
       <div className="mt-4 p-3 font-semibold text-center w-full h-[111px] rounded-2xl bg-[var(--maroon)] text-[var(--white)] flex flex-col items-center justify-center gap-1 totalpoints">
-        <span>Total Score: {totalScore} Points</span>
+        <span>Total Score: {ratingsTotal} Points</span>
         <span>Minimum score to qualify for the award: 70 points</span>
-      </div>
-      {/* Buttons */}
-      <div className="flex justify-end gap-2 items-center font-normal mt-4 mb-4 px-3">
-        <Button
-          size="md"
-          variant={isReadOnly ? "disabled" : "secondary"}
-          onClick={handleReset}
-          disabled={isReadOnly}
-        >
-          Reset Form
-        </Button>
-        <Button
-          size="md"
-          variant={isReadOnly ? "disabled" : "submit"}
-          disabled={isReadOnly}
-        >
-          Submit Form
-        </Button>
       </div>
     </div>
   );

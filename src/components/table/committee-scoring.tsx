@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Button from "../button";
 
 interface ScoresJSON {
   ipcr?: number;
@@ -27,12 +26,30 @@ interface ReviewContext {
   status?: "completed" | "in-progress";
 }
 
+// Updated Props Interface
+interface PerformanceEvaluationFormProps {
+  reviewContext: ReviewContext | null;
+  scores: Record<string, number>;
+  setScores: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+  ipcr: { y2022: string; y2023: string; y2024: string };
+  setIpcr: React.Dispatch<
+    React.SetStateAction<{ y2022: string; y2023: string; y2024: string }>
+  >;
+  comments: string;
+  setComments: React.Dispatch<React.SetStateAction<string>>;
+  isLocked: boolean;
+}
+
 export default function PerformanceEvaluationForm({
   reviewContext,
-}: {
-  reviewContext: ReviewContext | null;
-}) {
-  // loading UI is handled by parent pages (junior/senior)
+  scores,
+  setScores,
+  ipcr,
+  setIpcr,
+  comments,
+  setComments,
+  isLocked,
+}: PerformanceEvaluationFormProps) {
   if (!reviewContext) return null;
 
   // Table descriptions
@@ -54,17 +71,7 @@ export default function PerformanceEvaluationForm({
   const partCMax = [5, 5, 5];
   const [partBMax, setPartBMax] = useState<number[]>([0, 0, 0, 0]);
 
-  // State for inputs and errors
-  const [inputs, setInputs] = useState<{
-    partA: string[];
-    partB: string[];
-    partC: string[];
-  }>({
-    partA: Array(partAKeys.length).fill(""),
-    partB: Array(partBKeys.length).fill(""),
-    partC: Array(partCKeys.length).fill(""),
-  });
-
+  // Validation Error State
   const [errors, setErrors] = useState<{
     partA: boolean[];
     partB: boolean[];
@@ -75,8 +82,8 @@ export default function PerformanceEvaluationForm({
     partC: Array(partCKeys.length).fill(false),
   });
 
-  // --- Mapping descriptions to scores_json keys ---
-  const partBMapping: Record<string, keyof ScoresJSON> = {
+  // --- Mapping descriptions to scores keys ---
+  const partBMapping: Record<string, string> = {
     "Intervening Activities": "intervening",
     "Significant innovations/contributions that improved the efficiency of unit operations":
       "innovations",
@@ -85,7 +92,7 @@ export default function PerformanceEvaluationForm({
       "service",
   };
 
-  const partCMapping: Record<string, keyof ScoresJSON> = {
+  const partCMapping: Record<string, string> = {
     "Punctuality (refer Table PUNCTUALITY)": "punctuality",
     "Ability to deliver quality outputs on time (with certification from immediate supervisor) * (refer Table QUALITY/EFFICIENCY)":
       "quality",
@@ -105,73 +112,62 @@ export default function PerformanceEvaluationForm({
     else setPartBMax([0, 0, 0, 0]);
   }, [reviewContext]);
 
-  useEffect(() => {
-    // support both shapes: reviewContext.existingReview.scores_json or reviewContext.scores_json
-    const maybeExisting = (reviewContext as any)?.existingReview;
-    const rawScores =
-      maybeExisting?.scores_json ?? (reviewContext as any)?.scores_json;
-    if (!rawScores) return;
+  // --- Handlers ---
 
-    let parsedScores: ScoresJSON = {};
-    try {
-      parsedScores =
-        typeof rawScores === "string"
-          ? (JSON.parse(rawScores) as ScoresJSON)
-          : (rawScores as ScoresJSON);
-    } catch (err) {
-      console.error("Failed to parse scores_json:", err, rawScores);
-      parsedScores = {};
+  const handleIpcrChange = (index: number, value: string) => {
+    let numericVal = 0;
+    if (value !== "") {
+      numericVal = Number(value);
+      if (numericVal < 0) numericVal = 0;
+      if (numericVal > partAMax) numericVal = partAMax;
     }
 
-    // Prefer individual yearly IPCR values if present in meta_ipcr_breakdown.
-    // Default to empty strings when missing.
-    const meta = (parsedScores as any)?.meta_ipcr_breakdown;
-    const partAValues = [meta?.y2022, meta?.y2023, meta?.y2024].map((v) =>
-      v !== undefined && v !== null ? v.toString() : ""
-    );
-    const partBValues = partBKeys.map((desc) => {
-      const key = partBMapping[desc];
-      return key ? parsedScores[key]?.toString() ?? "" : "";
-    });
-    const partCValues = partCKeys.map((desc) => {
-      const key = partCMapping[desc];
-      return key ? parsedScores[key]?.toString() ?? "" : "";
-    });
+    const key = index === 0 ? "y2022" : index === 1 ? "y2023" : "y2024";
+    // Update parent state
+    setIpcr((prev) => ({ ...prev, [key]: value }));
 
-    setInputs({ partA: partAValues, partB: partBValues, partC: partCValues });
+    // Local validation
+    setErrors((prev) => {
+      const updated = { ...prev };
+      updated.partA[index] = numericVal > partAMax || numericVal < 0;
+      return updated;
+    });
+  };
 
-    // Debug logs
-    console.log("Parsed scores_json:", parsedScores);
-    console.log("Part A Values:", partAValues);
-    console.log("Part B Values:", partBValues);
-    console.log("Part C Values:", partCValues);
-  }, [reviewContext]);
-  // --- Handle input change ---
-  type PartType = "partA" | "partB" | "partC";
-  const handleChange = (part: PartType, index: number, value: string) => {
+  const handleScoreChange = (
+    part: "partB" | "partC",
+    index: number,
+    value: string,
+    desc: string
+  ) => {
     let max = 0;
     let min = 0;
-    if (part === "partA") max = partAMax;
-    if (part === "partB") max = partBMax[index] ?? 0;
+    let mapping: Record<string, string> = {};
+
+    if (part === "partB") {
+      max = partBMax[index] ?? 0;
+      mapping = partBMapping;
+    }
     if (part === "partC") {
       max = partCMax[index];
       min = 1;
+      mapping = partCMapping;
     }
 
-    let numericVal: number;
-    if (value === "") numericVal = 0;
-    else {
+    const key = mapping[desc];
+    if (!key) return;
+
+    let numericVal = 0;
+    if (value !== "") {
       numericVal = Number(value);
       if (numericVal < min) numericVal = min;
       if (numericVal > max) numericVal = max;
     }
 
-    setInputs((prev) => {
-      const updated = { ...prev };
-      updated[part][index] = numericVal.toString();
-      return updated;
-    });
+    // Update parent state
+    setScores((prev) => ({ ...prev, [key]: numericVal }));
 
+    // Local validation
     setErrors((prev) => {
       const updated = { ...prev };
       updated[part][index] = numericVal > max || numericVal < min;
@@ -179,31 +175,29 @@ export default function PerformanceEvaluationForm({
     });
   };
 
-  // --- Calculate totals ---
-  const totalPartA = inputs.partA.reduce(
+  // --- Calculate totals for display ---
+  const ipcrValues = [ipcr.y2022, ipcr.y2023, ipcr.y2024];
+  const totalPartA = ipcrValues.reduce(
     (sum, val) => sum + (Number(val) || 0),
     0
   );
-  const avgPartA = inputs.partA.every((v) => v === "")
+  const avgPartA = ipcrValues.every((v) => v === "")
     ? ""
-    : (totalPartA / inputs.partA.length).toFixed(2);
-  const totalPartB = inputs.partB.reduce(
-    (sum, val) => sum + (Number(val) || 0),
-    0
-  );
-  const totalPartC = inputs.partC.reduce(
-    (sum, val) => sum + (Number(val) || 0),
-    0
-  );
-  const overallTotal = totalPartA + totalPartB + totalPartC;
+    : (totalPartA / 3).toFixed(2); // Average of 3 periods
 
-  // --- Determine if inputs should be readonly/disabled ---
-  // Consider both reviewContext.status and existingReview.status
-  const isReadOnly =
-    (reviewContext as any)?.status === "completed" ||
-    (reviewContext as any)?.existingReview?.status === "completed";
+  const totalPartB = partBKeys.reduce((sum, desc) => {
+    const key = partBMapping[desc];
+    return sum + (scores[key] || 0);
+  }, 0);
 
-  // --- Render ---
+  const totalPartC = partCKeys.reduce((sum, desc) => {
+    const key = partCMapping[desc];
+    return sum + (scores[key] || 0);
+  }, 0);
+
+  const overallTotal =
+    (Number(avgPartA) || 0) + totalPartB + totalPartC;
+
   return (
     <div>
       <div className="max-w-5xl mx-auto bg-[var(--white)] shadow-md rounded-t-2xl overflow-hidden outline-1 outline-[var(--outline-grey)]">
@@ -234,15 +228,15 @@ export default function PerformanceEvaluationForm({
                 <td className="p-3">
                   <input
                     type="number"
-                    value={inputs.partA[idx] ?? ""}
+                    value={ipcrValues[idx]}
                     placeholder="0"
                     min={0}
                     max={partAMax}
-                    disabled={isReadOnly}
+                    disabled={isLocked}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partA[idx] ? "border-red-500" : ""
                     }`}
-                    onChange={(e) => handleChange("partA", idx, e.target.value)}
+                    onChange={(e) => handleIpcrChange(idx, e.target.value)}
                   />
                   {errors.partA[idx] && (
                     <div className="text-red-500 text-xs">Max {partAMax}</div>
@@ -274,15 +268,17 @@ export default function PerformanceEvaluationForm({
                 <td className="p-3">
                   <input
                     type="number"
-                    value={inputs.partB[idx] ?? ""}
+                    value={scores[partBMapping[indicator]] ?? ""}
                     placeholder="0"
                     min={0}
                     max={partBMax[idx] ?? 0}
-                    disabled={isReadOnly}
+                    disabled={isLocked}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partB[idx] ? "border-red-500" : ""
                     }`}
-                    onChange={(e) => handleChange("partB", idx, e.target.value)}
+                    onChange={(e) =>
+                      handleScoreChange("partB", idx, e.target.value, indicator)
+                    }
                   />
                   {errors.partB[idx] && (
                     <div className="text-red-500 text-xs">
@@ -309,15 +305,17 @@ export default function PerformanceEvaluationForm({
                 <td className="p-3">
                   <input
                     type="number"
-                    value={inputs.partC[idx] ?? ""}
+                    value={scores[partCMapping[indicator]] ?? ""}
                     placeholder="1"
                     min={1}
                     max={5}
-                    disabled={isReadOnly}
+                    disabled={isLocked}
                     className={`w-20 border rounded p-1 text-center ${
                       errors.partC[idx] ? "border-red-500" : ""
                     }`}
-                    onChange={(e) => handleChange("partC", idx, e.target.value)}
+                    onChange={(e) =>
+                      handleScoreChange("partC", idx, e.target.value, indicator)
+                    }
                   />
                   {errors.partC[idx] && (
                     <div className="text-red-500 text-xs">Range 1–5 only</div>
@@ -331,25 +329,23 @@ export default function PerformanceEvaluationForm({
 
       {/* Total Points */}
       <div className="mt-4 p-3 font-semibold text-right w-full h-[111px] rounded-2xl bg-[var(--maroon)] text-[var(--white)] flex items-center justify-center flex-col gap-2">
-        <span>Total Score: {overallTotal} Points</span>
+        <span>Total Score: {overallTotal.toFixed(2)} Points</span>
         <span>Minimum score to qualify for the award: 70 points</span>
       </div>
 
-      <div className="flex justify-end gap-2 items-center font-normal mt-4">
-        <Button
-          size="md"
-          variant={isReadOnly ? "disabled" : "secondary"}
-          disabled={isReadOnly}
-        >
-          Reset Form
-        </Button>
-        <Button
-          size="md"
-          variant={isReadOnly ? "disabled" : "submit"}
-          disabled={isReadOnly}
-        >
-          Submit Form
-        </Button>
+      {/* Comments Section Added */}
+      <div className="mt-6 bg-white p-6 rounded-lg border border-[var(--outline-grey)]">
+        <label className="block font-bold mb-2">
+          Overall Comments / Remarks
+        </label>
+        <textarea
+          rows={4}
+          disabled={isLocked}
+          className="w-full p-3 border border-[var(--outline-grey)] rounded-lg resize-none"
+          placeholder="Add justification or remarks here..."
+          value={comments}
+          onChange={(e) => setComments(e.target.value)}
+        />
       </div>
     </div>
   );

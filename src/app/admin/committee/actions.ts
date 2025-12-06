@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server"
+import { revalidatePath } from "next/cache"
 
 // Define the shape of the data
 export type CommitteeNomination = {
@@ -25,15 +26,6 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
 
   const myUserId = authData.user.id;
 
-  // 1. Get total committee reviewers dynamically
-  const { data: committeeMembers } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("role", "committee");
-
-  const committeeCount = committeeMembers?.length || 0;
-
-  // 2. Fetch nominations and their reviews
   const { data: nominations, error } = await supabase
     .from("nominations")
     .select(`
@@ -121,7 +113,6 @@ export async function getReviewContext(nominationId: string) {
 
   const globalCompletedCount = count || 0;
 
-  // Dynamic Lock Logic
   const isLocked =
     globalCompletedCount >= committeeCount &&
     myReview?.status !== "completed";
@@ -141,39 +132,36 @@ export async function saveCommitteeReview(formData: FormData) {
   if (!auth?.user) return { success: false, message: "Unauthorized" }
 
   const nominationId = formData.get("nomination_id") as string
-  const action = formData.get("action") as string
+  const action = formData.get("action") as string // "draft" or "submit"
   
   // Parse scores
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
-  // Use 'any' to allow storing the metadata object structure
   const scoresJson: Record<string, any> = {}
   let myTotalScore = 0
 
-  // 1. Capture Breakdown Data for restoration later (The 3 years)
+  // 1. Capture Breakdown Data 
   const breakdownData = {
     y2022: parseFloat(rawData["y2022"] as string) || 0,
     y2023: parseFloat(rawData["y2023"] as string) || 0,
     y2024: parseFloat(rawData["y2024"] as string) || 0,
   }
 
-  // 2. Filter out non-score keys (including the breakdown inputs)
+  // 2. Filter out non-score keys
   const excludedKeys = ["nomination_id", "action", "comments", "recommendation", "y2022", "y2023", "y2024"]; 
 
   Object.keys(rawData).forEach((key) => {
     if (!excludedKeys.includes(key)) {
-      // Use parseFloat to preserve decimals
       const score = parseFloat(rawData[key] as string) || 0
       scoresJson[key] = score
       myTotalScore += score
     }
   })
 
-  // 3. Inject Breakdown Data as Metadata into the JSON
+  // 3. Inject Breakdown Data
   scoresJson["meta_ipcr_breakdown"] = breakdownData;
 
-  // Round total score to 2 decimal places for clean DB storage
   myTotalScore = parseFloat(myTotalScore.toFixed(2))
 
   const status = action === "submit" ? "completed" : "in_progress"
@@ -193,24 +181,30 @@ export async function saveCommitteeReview(formData: FormData) {
 
   if (error) return { success: false, message: "Failed to save review" }
 
-  // IF SUBMITTING: Calculate Final Verdict
+  // IF SUBMITTING: Check if we should Calculate Final Verdict
   if (action === "submit") {
     
-    // Count how many finished reviews exist now
+    // CASE A. Count total committee members needed
+    const { count: totalCommitteeCount } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "committee");
+    
+    // CASE B. Count how many finished reviews exist now (including the one we just saved)
     const { data: allReviews } = await supabase
       .from("reviews")
       .select("total_score")
       .eq("nomination_id", nominationId)
       .eq("status", "completed")
 
-    // If we hit the magic number 3
-    if (allReviews && allReviews.length >= 3) {
+    // If ALL committee members have submitted
+    if (allReviews && totalCommitteeCount && allReviews.length >= totalCommitteeCount) {
       
-      // A. Calculate Average
+      // Calculate Average
       const sumOfReviewers = allReviews.reduce((sum, r) => sum + (r.total_score || 0), 0)
       const averageScore = sumOfReviewers / allReviews.length
 
-      // B. Get Max Possible Score from Rubric
+      // Get Max Possible Score
       const { data: nom } = await supabase
         .from("nominations")
         .select("category")
@@ -223,14 +217,13 @@ export async function saveCommitteeReview(formData: FormData) {
         .eq("category", nom?.category)
         .single()
       
-      // Sum up the 'max' fields in the criteria JSON
       const maxPossibleScore = (rubric?.criteria as any[]).reduce((sum: number, item: any) => sum + (item.max || 0), 0)
 
-      // C. The 70% Logic
+      // The 70% Logic
       const passingScore = maxPossibleScore * 0.70
       const finalVerdict = averageScore >= passingScore ? "Qualified" : "Disqualified"
 
-      // D. Update the Nomination Record
+      // Update the Nomination Record
       await supabase
         .from("nominations")
         .update({ evaluation_result: finalVerdict })
@@ -238,14 +231,16 @@ export async function saveCommitteeReview(formData: FormData) {
     }
   }
 
-  return { success: true, message: action === "submit" ? "Review submitted!" : "Draft saved." }
+  // Revalidate pages so dashboards update immediately
+  revalidatePath("/committee");
+  revalidatePath("/admin/committee");
+
+  return { success: true, message: action === "submit" ? "Review submitted successfully!" : "Draft saved successfully." }
 }
 
 export async function getNominationResults(nominationId: string) {
   const supabase = await createClient()
 
-  // 1. Fetch Nomination Details + Attachments + Nominator Name
-  // FIX: Switched to '!created_by' which is the standard link to profiles.
   const { data: nomination, error } = await supabase
     .from("nominations")
     .select(`
@@ -257,18 +252,15 @@ export async function getNominationResults(nominationId: string) {
     .single()
 
   if (error || !nomination) {
-    console.error("Fetch Error:", error);
     return { error: "Nomination not found" }
   }
 
-  // 2. Fetch the Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
     .select("*")
     .eq("category", nomination.category)
     .single()
 
-  // 3. Fetch Reviews
   const { data: reviews } = await supabase
     .from("reviews")
     .select(`

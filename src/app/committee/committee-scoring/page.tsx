@@ -28,6 +28,7 @@ interface Nominee {
 export default function CommitteeScoring() {
   const router = useRouter();
   const pathname = usePathname();
+  
   const [selectedCategory, setSelectedCategory] = useState("Select Category");
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
@@ -88,16 +89,17 @@ export default function CommitteeScoring() {
     };
   }, [selectedCategory]);
 
+  // --- FILTERING LOGIC ---
   const filteredData = useMemo(() => {
-    let result = data;
+    // 1. Always filter out "Completed" items for this page
+    let result = data.filter((d) => d.status !== "Completed");
 
+    // 2. Filter by Category
     if (selectedCategory !== "Select Category") {
       if (
         selectedCategory ===
         "Non-Teaching Personnel (Junior and Industrial Level)"
       ) {
-        // when the generic junior+industrial option is selected, include both
-        // specific junior labels as well as the generic label
         result = result.filter((d) =>
           [
             "Non-Teaching Personnel (Junior and Industrial Level)",
@@ -110,6 +112,7 @@ export default function CommitteeScoring() {
       }
     }
 
+    // 3. Filter by Search Query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((d) =>
@@ -153,37 +156,9 @@ export default function CommitteeScoring() {
     }
   };
 
-  // Navigate to scoring
-  const handleEvaluate = (nominee: Nominee) => {
-    const slug = getCategorySlug(nominee.category);
-    if (!slug || slug === "unknown") {
-      console.warn("Unknown category:", nominee.category);
-      return;
-    }
-
-    const path = `/committee/committee-scoring/${slug}/${nominee.nomineeid}`;
-
-    router.push(
-      `${path}?nomineeid=${encodeURIComponent(
-        nominee.nomineeid
-      )}&nomineename=${encodeURIComponent(nominee.nomineename)}`
-    );
-  };
-
-  // Navigate to view-only page
-  const handleView = (nominee: Nominee) => {
-    router.push(
-      `/committee/committee-scoring/view/${
-        nominee.nomineeid
-      }?nomineeid=${encodeURIComponent(
-        nominee.nomineeid
-      )}&nomineename=${encodeURIComponent(nominee.nomineename)}`
-    );
-  };
-
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
-      <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
+      <div className="flex items-start justify-between mb-6 w-full max-w-6xl">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">
             Committee Scoring
@@ -271,11 +246,14 @@ export default function CommitteeScoring() {
               <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
                 <FolderX size={100} className="mb-4 opacity-70" />
                 <p className="font-bold text-3xl">No Results Found</p>
+                <p className="text-sm mt-1">
+                  You have no pending evaluations.
+                </p>
               </div>
             )}
           </div>
 
-          {/* Evaluate or View depending on status */}
+          {/* Evaluate Action - Only Evaluate since Completed items are hidden */}
           {typeof window !== "undefined" &&
             openDropdownIndex !== null &&
             dropdownPosition && (
@@ -283,48 +261,26 @@ export default function CommitteeScoring() {
                 position={dropdownPosition}
                 onCloseAction={() => setOpenDropdownIndex(null)}
                 items={[
-                  filteredData[openDropdownIndex!].status === "Completed"
-                    ? {
-                        label: "View",
-                        color: "text-black",
-                        onClickAction: () => {
-                          const item = filteredData[openDropdownIndex!];
-                          const id = item.nomineeid;
-                          const categorySlug = getCategorySlug(item.category);
+                  {
+                    label: "Evaluate",
+                    color: "text-black",
+                    onClickAction: () => {
+                      const item = filteredData[openDropdownIndex!];
+                      const id = item.nomineeid;
+                      const categorySlug = getCategorySlug(item.category);
 
-                          const params = new URLSearchParams();
-                          params.set("nomineeid", item.nomineeid);
-                          params.set("nomineename", item.nomineename);
-                          params.set("category", categorySlug);
-                          params.set("mode", "view");
+                      const params = new URLSearchParams();
+                      params.set("nomineeid", item.nomineeid);
+                      params.set("nomineename", item.nomineename);
+                      params.set("category", item.category);
 
-                          router.push(
-                            `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
-                          );
+                      router.push(
+                        `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
+                      );
 
-                          setOpenDropdownIndex(null);
-                        },
-                      }
-                    : {
-                        label: "Evaluate",
-                        color: "text-black",
-                        onClickAction: () => {
-                          const item = filteredData[openDropdownIndex!];
-                          const id = item.nomineeid;
-                          const categorySlug = getCategorySlug(item.category);
-
-                          const params = new URLSearchParams();
-                          params.set("nomineeid", item.nomineeid);
-                          params.set("nomineename", item.nomineename);
-                          params.set("category", item.category);
-
-                          router.push(
-                            `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
-                          );
-
-                          setOpenDropdownIndex(null);
-                        },
-                      },
+                      setOpenDropdownIndex(null);
+                    },
+                  },
                 ]}
               />
             )}
