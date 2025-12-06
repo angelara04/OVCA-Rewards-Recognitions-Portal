@@ -1,21 +1,38 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Section from "@/components/section";
 import Button from "@/components/button";
 import Role from "@/components/greetings/role";
 import { User, Mail, Briefcase, Calendar, RefreshCw } from "lucide-react";
+import Link from "next/link";
+
+import { getUserProfile, type UserProfile } from "@/app/admin/committee/profile/actions";
 
 export default function ProfilePage() {
-  const profile = {
-    name: "John Doe",
-    email: "JohnDoe@gmail.com",
-    role: "Nominator",
-    department: "Office of the Vice Chancellor",
-    memberSince: "January 15, 2024",
-    lastLogin: "October 28, 2025, 2:45 PM",
-    reviewsCompleted: 24,
-    pendingActions: 3,
-  };
+ 
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile() {
+      setLoading(true);
+      const data = await getUserProfile();
+      setProfile(data);
+      setLoading(false);
+    }
+    loadProfile();
+  }, []);
+
+ if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+        <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--dark-grey)] text-sm font-medium">Loading...</p>
+      </div>
+    );
+  }
+  if (!profile)
+    return <div className="p-20 text-red-500">Profile not found.</div>;
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
@@ -35,18 +52,32 @@ export default function ProfilePage() {
         {/* Profile Columns */}
         <div className="flex flex-col md:flex-row gap-8 w-full">
           {/* Left Column */}
-          <div className="flex flex-col items-center md:w-1/3 w-full ">
+          <div className="flex flex-col items-center md:w-1/3 w-full">
             <div className="relative">
-              <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-4xl sm:text-5xl font-bold">
-                JD
-              </div>
-              <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-[var(--maroon)] rounded-full p-2 text-white text-xs">
-                <User size={16} />
-              </div>
-            </div>
+                          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                            {profile.avatarUrl ? (
+                              <img
+                                src={profile.avatarUrl}
+                                alt={profile.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-gray-500 text-4xl sm:text-5xl font-bold">
+                                {profile.name[0]}{profile.name.split(" ")[1]?.[0] || ""}
+                              </span>
+                            )}
+                            <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-[var(--maroon)] rounded-full p-2 text-white text-xs">
+                              <User size={16} />
+                            </div>
+                          </div>
+            
+                          <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 bg-[var(--maroon)] rounded-full p-2 text-white text-xs">
+                            <User size={16} />
+                          </div>
+                        </div>
 
             <h2 className="text-base font-semibold mt-4">{profile.name}</h2>
-            <Role role={profile.role} />
+            <Role role= "Nominator" />
           </div>
 
           {/* Right Column */}
@@ -101,17 +132,23 @@ export default function ProfilePage() {
                   />
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full">
                     <p className="text-gray-500  w-auto lg:w-[180px]">Role</p>
-                    <div className="flex-1 flex items-center justify-between flex-col gap-2 xl:flex-row">
-                      <Role role={profile.role} />
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="text-xs px-3 py-1 whitespace-nowrap"
-                      >
-                        <RefreshCw size={14} className="mr-1" />
-                        Switch to Committee
-                      </Button>
-                    </div>
+                                      <div className="flex-1 flex items-center justify-between flex-col gap-2 xl:flex-row">
+                    <Role role="Nominator" />
+                    {profile.role == "committee" && (
+                  <Link href="/committee/review-dashboard">
+                    <Button size="sm" variant="secondary" className="text-xs px-3 py-1 whitespace-nowrap
+                                                                      transition transform duration-200
+                                                                      hover:bg-[var(--dark-grey)] hover:text-[var(--white)]
+                                                                     ">
+                      <RefreshCw size={14} className="mr-1" />
+                      Switch to Committee
+                    </Button>
+                  </Link>
+                )}
+
+
+                  </div>
+
                   </div>
                 </div>
 
@@ -122,12 +159,8 @@ export default function ProfilePage() {
                     size={36}
                   />
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full">
-                    <p className="text-gray-500  w-auto lg:w-[180px]">
-                      Department
-                    </p>
-                    <p className="font-semibold break-words">
-                      {profile.department}
-                    </p>
+                    <p className="text-gray-500  w-auto lg:w-[180px]">Department</p>
+                    <p className="font-semibold break-words">{profile.department}</p>
                   </div>
                 </div>
 
@@ -138,9 +171,7 @@ export default function ProfilePage() {
                     size={36}
                   />
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 w-full">
-                    <p className="text-gray-500  w-auto lg:w-[180px]">
-                      Member Since
-                    </p>
+                    <p className="text-gray-500  w-auto lg:w-[180px]">Member Since</p>
                     <p className="font-semibold">{profile.memberSince}</p>
                   </div>
                 </div>
@@ -163,12 +194,12 @@ export default function ProfilePage() {
               },
               {
                 label: "Reviews Completed",
-                value: profile.reviewsCompleted,
+                value: profile.stats.reviewsCompleted,
                 desc: "Total reviews completed",
               },
               {
                 label: "Pending Actions",
-                value: profile.pendingActions,
+                value: profile.stats.reviewsPending,
                 desc: "Awaiting your action",
               },
             ].map((item) => (

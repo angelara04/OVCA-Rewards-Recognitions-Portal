@@ -81,6 +81,14 @@ export async function getReviewContext(nominationId: string) {
 
   if (!nomination) return { error: "Nomination not found" };
 
+  // --- 🔥 NEW CONSTRAINT: Block Reviewing Own Nomination ---
+  if (nomination.created_by === userId) {
+    return { 
+      error: "Conflict of Interest: You cannot review a nomination you submitted yourself." 
+    };
+  }
+  // ---------------------------------------------------------
+
   // Fetch Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
@@ -125,7 +133,7 @@ export async function getReviewContext(nominationId: string) {
   };
 }
 
-// --- UPDATED SAVE ACTION WITH IPCR LOGIC ---
+// --- UPDATED SAVE ACTION WITH CONSTRAINT CHECK ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
@@ -134,39 +142,57 @@ export async function saveCommitteeReview(formData: FormData) {
   const nominationId = formData.get("nomination_id") as string
   const action = formData.get("action") as string // "draft" or "submit"
   
-  // Parse scores
+  // --- 🔥 NEW SECURITY CHECK: Verify Ownership Before Saving ---
+  const { data: checkNom } = await supabase
+    .from("nominations")
+    .select("created_by")
+    .eq("id", nominationId)
+    .single();
+    
+  if (checkNom && checkNom.created_by === auth.user.id) {
+     return { success: false, message: "Action Blocked: You cannot review your own nomination." }
+  }
+  // -----------------------------------------------------------
+
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
+  // Changed to 'any' to allow saving the metadata object
   const scoresJson: Record<string, any> = {}
   let myTotalScore = 0
 
-  // 1. Capture Breakdown Data 
+  // 1. Capture Breakdown Data + Supervisor Details
   const breakdownData = {
     y2022: parseFloat(rawData["y2022"] as string) || 0,
     y2023: parseFloat(rawData["y2023"] as string) || 0,
     y2024: parseFloat(rawData["y2024"] as string) || 0,
+    supervisor: rawData["supervisor"] as string || "", 
+    unit: rawData["unit"] as string || ""              
   }
 
-  // 2. Filter out non-score keys
-  const excludedKeys = ["nomination_id", "action", "comments", "recommendation", "y2022", "y2023", "y2024"]; 
+  // 2. Filter out non-score keys (Critical to prevent math errors)
+  const excludedKeys = [
+      "nomination_id", "action", "comments", "recommendation", 
+      "y2022", "y2023", "y2024", "supervisor", "unit"
+  ]; 
 
   Object.keys(rawData).forEach((key) => {
     if (!excludedKeys.includes(key)) {
+      // Use parseFloat to preserve decimals (e.g. 53.33)
       const score = parseFloat(rawData[key] as string) || 0
       scoresJson[key] = score
       myTotalScore += score
     }
   })
 
-  // 3. Inject Breakdown Data
+  // 3. Inject Breakdown Data as Metadata
   scoresJson["meta_ipcr_breakdown"] = breakdownData;
 
   myTotalScore = parseFloat(myTotalScore.toFixed(2))
 
   const status = action === "submit" ? "completed" : "in_progress"
 
-  // Save the individual review
+  // 1. Save the individual review
   const { error } = await supabase
     .from("reviews")
     .upsert({
@@ -181,7 +207,7 @@ export async function saveCommitteeReview(formData: FormData) {
 
   if (error) return { success: false, message: "Failed to save review" }
 
-  // IF SUBMITTING: Check if we should Calculate Final Verdict
+  // 2. IF SUBMITTING: Check if we need to calculate the Final Verdict
   if (action === "submit") {
     
     // CASE A. Count total committee members needed
@@ -241,7 +267,8 @@ export async function saveCommitteeReview(formData: FormData) {
 export async function getNominationResults(nominationId: string) {
   const supabase = await createClient()
 
-  const { data: nomination, error } = await supabase
+  // 1. Fetch Nomination Details + Attachments + Nominator Name
+  const { data: nomination } = await supabase
     .from("nominations")
     .select(`
       *, 
@@ -251,9 +278,7 @@ export async function getNominationResults(nominationId: string) {
     .eq("id", nominationId)
     .single()
 
-  if (error || !nomination) {
-    return { error: "Nomination not found" }
-  }
+  if (!nomination) return { error: "Nomination not found" }
 
   const { data: rubric } = await supabase
     .from("rubrics")

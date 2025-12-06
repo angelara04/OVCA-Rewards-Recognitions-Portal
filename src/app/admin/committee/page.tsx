@@ -3,14 +3,22 @@
 import { useState, useEffect } from "react"
 import { getCommitteeDashboardData, type CommitteeNomination } from "./actions"
 import Link from "next/link"
+import { createClient } from "@/utils/supabase/client" // Note: Client import
 
 export default function CommitteeDashboard() {
   const [nominations, setNominations] = useState<CommitteeNomination[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState("All")
+  const [currentUserId, setCurrentUserId] = useState<string>("")
 
   useEffect(() => {
     async function fetchData() {
+      // 1. Get Current User ID to check for own nominations
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setCurrentUserId(user.id)
+
+      // 2. Fetch Data
       const data = await getCommitteeDashboardData()
       setNominations(data)
       setLoading(false)
@@ -48,7 +56,7 @@ export default function CommitteeDashboard() {
           </p>
         </div>
 
-        {/* Simple Stats Card */}
+        {/* Stats */}
         <div className="flex gap-4">
           <div className="bg-white p-3 rounded border shadow-sm text-center min-w-[100px]">
             <div className="text-2xl font-bold text-blue-600">
@@ -102,7 +110,11 @@ export default function CommitteeDashboard() {
                 </td>
               </tr>
             ) : (
-              filteredNominations.map((nom) => (
+              filteredNominations.map((nom) => {
+                // CHECK: Is this my own nomination?
+                const isOwnNomination = nom.nominator_id === currentUserId;
+
+                return (
                 <tr key={nom.id} className="hover:bg-gray-50 transition">
                   <td className="p-4">
                     <div className="font-medium text-gray-900">{nom.nominee_name}</div>
@@ -114,13 +126,11 @@ export default function CommitteeDashboard() {
                     <div className="text-xs text-gray-500">{nom.unit}</div>
                   </td>
 
-                  {/* Global Progress Column */}
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">
                         {nom.global_review_count} / 3
                       </span>
-                      {/* Simple progress bar */}
                       <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div 
                           className={`h-full ${nom.global_review_count >= 3 ? "bg-red-500" : "bg-blue-500"}`}
@@ -128,41 +138,38 @@ export default function CommitteeDashboard() {
                         />
                       </div>
                     </div>
-                    {nom.global_review_count >= 3 && (
-                      <span className="text-xs text-red-600 font-medium">Locked</span>
-                    )}
                   </td>
 
-                  {/* My Status Badge */}
                   <td className="p-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(
-                        nom.my_status
-                      )}`}
-                    >
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(nom.my_status)}`}>
                       {nom.my_status}
                     </span>
                   </td>
 
                   <td className="p-4 text-right">
-                    {/* UPDATED LINK LOGIC: Points to Results if Completed, Review if not */}
-                    <Link
-                      href={
-                        nom.my_status === "Completed" 
-                          ? `/admin/committee/results/${nom.id}` 
-                          : `/admin/committee/review/${nom.id}`
-                      }
-                      className={`inline-block px-4 py-2 rounded text-sm font-medium shadow-sm transition-colors ${
-                        nom.my_status === "Completed"
-                          ? "bg-white border text-gray-700 hover:bg-gray-50"
-                          : "bg-blue-600 text-white hover:bg-blue-700"
-                      }`}
-                    >
-                      {nom.my_status === "Completed" ? "View Results" : "Evaluate"}
-                    </Link>
+                    {isOwnNomination ? (
+                         <span className="inline-block px-4 py-2 text-xs font-bold text-gray-400 bg-gray-50 rounded border border-gray-100 cursor-not-allowed select-none">
+                            Your Nomination
+                         </span>
+                    ) : (
+                        <Link
+                        href={
+                            nom.my_status === "Completed" 
+                            ? `/admin/committee/results/${nom.id}` 
+                            : `/admin/committee/review/${nom.id}`
+                        }
+                        className={`inline-block px-4 py-2 rounded text-sm font-medium shadow-sm transition-colors ${
+                            nom.my_status === "Completed"
+                            ? "bg-white border text-gray-700 hover:bg-gray-50"
+                            : "bg-blue-600 text-white hover:bg-blue-700"
+                        }`}
+                        >
+                        {nom.my_status === "Completed" ? "View Results" : "Evaluate"}
+                        </Link>
+                    )}
                   </td>
                 </tr>
-              ))
+              )})
             )}
           </tbody>
         </table>

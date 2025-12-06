@@ -64,7 +64,7 @@ export default function NominationResults({ params }: { params: Promise<{ id: st
                     <h1 className="text-3xl font-bold text-gray-900">{data.nomination.nominee_name}</h1>
                     <p className="text-gray-500">{data.nomination.position} • {data.nomination.unit}</p>
                     
-                    {/* Added Nominator Name Display */}
+                    {/* Nominator Name Display */}
                     <p className="text-sm text-gray-400 mt-2">
                        Nominated by: <span className="font-medium text-gray-600">{data.nomination.nominator?.name || "Unknown"}</span>
                     </p>
@@ -114,8 +114,13 @@ export default function NominationResults({ params }: { params: Promise<{ id: st
            <p className="text-gray-500 italic">No reviews found (or there was an error loading reviewer details).</p>
         ) : (
         <div className="space-y-4">
-            {reviews.map((review: any, index: number) => (
+            {reviews.map((review: any, index: number) => {
+                // Extract Metadata if it exists
+                const metadata = review.scores_json?.meta_ipcr_breakdown;
+
+                return (
                 <div key={review.id} className="bg-white border rounded-lg p-6 shadow-sm">
+                    {/* Card Header */}
                     <div className="flex justify-between items-start mb-4 border-b pb-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
@@ -136,6 +141,24 @@ export default function NominationResults({ params }: { params: Promise<{ id: st
                             </div>
                         </div>
                     </div>
+
+                    {/* --- NEW SECTION: Supervisor Info (Only if present) --- */}
+                    {metadata && (metadata.supervisor || metadata.unit) && (
+                        <div className="mb-6 bg-blue-50 border border-blue-100 rounded-lg p-4 flex flex-col sm:flex-row sm:gap-8 gap-2">
+                            {metadata.supervisor && (
+                                <div>
+                                    <p className="text-xs font-bold text-blue-800 uppercase">Supervisor</p>
+                                    <p className="text-sm text-blue-900 font-medium">{metadata.supervisor}</p>
+                                </div>
+                            )}
+                            {metadata.unit && (
+                                <div>
+                                    <p className="text-xs font-bold text-blue-800 uppercase">Unit / Office</p>
+                                    <p className="text-sm text-blue-900 font-medium">{metadata.unit}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Scores Section */}
@@ -169,7 +192,7 @@ export default function NominationResults({ params }: { params: Promise<{ id: st
                         </div>
                     </div>
                 </div>
-            ))}
+            )})}
         </div>
         )}
 
