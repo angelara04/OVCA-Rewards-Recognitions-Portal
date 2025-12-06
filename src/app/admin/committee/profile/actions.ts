@@ -6,10 +6,11 @@ import { createClient } from "@/utils/supabase/server";
 export type UserProfile = {
   name: string;
   email: string;
-  role: string;
+  role: string; 
   department: string;
   memberSince: string;
   lastLogin: string;
+  avatarUrl: string;
   
   // New fields
   isCommittee: boolean; 
@@ -26,6 +27,24 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return null;
+
+  const avatarUrl =
+    user.user_metadata?.avatar_url ||
+    user.user_metadata?.picture ||
+    "/default-avatar.png";
+
+  const rawLastLogin = user.last_sign_in_at;
+  const lastLogin = rawLastLogin
+  ? new Date(rawLastLogin).toLocaleString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  : "No login data";
+
 
   // 1. Fetch Profile
   const { data: profile } = await supabase
@@ -55,7 +74,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     year: "numeric", month: "long", day: "numeric",
   });
   
-  const lastLogin = user.last_sign_in_at || new Date().toISOString();
 
   // 4. Return Data matching the Type Definition above
   return {
@@ -65,6 +83,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     department: profile.department || "Unassigned",
     memberSince,
     lastLogin,
+    avatarUrl,
     isCommittee: profile.role === "committee",
     stats: {
       reviewsCompleted: completedReviews.count || 0,
