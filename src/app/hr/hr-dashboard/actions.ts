@@ -17,6 +17,13 @@ export interface Employee {
   dateRegistered?: string
 }
 
+export interface PortalSettings {
+  nomination_start_date: string | null
+  nomination_end_date: string | null
+  scoring_start_date: string | null
+  scoring_end_date: string | null
+}
+
 //  Returns the SAME DATA SHAPE as employee-registration → "All" tab
 export async function getAllRegistrations(): Promise<Employee[]> {
   const [pending, approved, denied] = await Promise.all([
@@ -31,7 +38,7 @@ export async function getAllRegistrations(): Promise<Employee[]> {
     email: r.email,
     role: r.role ?? 'N/A',
     department: r.form_data?.department ?? 'N/A',
-    status: 'pending' as const, // literal type cast
+    status: 'pending' as const, 
     dateRegistered: r.created_at
       ? new Date(r.created_at).toLocaleDateString('en-PH')
       : undefined,
@@ -43,7 +50,7 @@ export async function getAllRegistrations(): Promise<Employee[]> {
     email: r.email,
     role: r.role ?? 'N/A',
     department: r.form_data?.department ?? 'N/A',
-    status: 'approved' as const, // literal type cast
+    status: 'approved' as const, 
     dateRegistered: r.updated_at
       ? new Date(r.updated_at).toLocaleDateString('en-PH')
       : undefined,
@@ -55,13 +62,12 @@ export async function getAllRegistrations(): Promise<Employee[]> {
     email: r.email,
     role: r.role ?? 'N/A',
     department: r.form_data?.department ?? 'N/A',
-    status: 'rejected' as const, // literal type cast
+    status: 'rejected' as const, 
     dateRegistered: r.denied_at
       ? new Date(r.denied_at).toLocaleDateString('en-PH')
       : undefined,
   }))
 
-  // Combine all registrations: approved first, then pending, then denied
   return [...mappedApproved, ...mappedPending, ...mappedDenied]
 }
 
@@ -95,5 +101,34 @@ export async function getDashboardCounts() {
     pendingRegistrations: pendingCount ?? 0,
     activeCommittee: committeeCount ?? 0,
     totalRegistered: totalRegistered ?? 0,
+  }
+}
+
+/**
+ * Fetch Portal Dates/Settings
+ */
+export async function getPortalSettings(): Promise<PortalSettings | null> {
+  const supabase = await createClient()
+  
+  // 1. Fetch the rows where setting_key is either 'nomination_period' or 'scoring_period'
+  const { data, error } = await supabase
+    .from('portal_settings') 
+    .select('setting_key, start_at, end_at')
+    .in('setting_key', ['nomination_period', 'scoring_period'])
+
+  if (error || !data) {
+    console.error('Error fetching portal settings:', error)
+    return null
+  }
+
+  // 2. Map the rows to the single object structure the frontend expects
+  const nominationRow = data.find(row => row.setting_key === 'nomination_period')
+  const scoringRow = data.find(row => row.setting_key === 'scoring_period')
+
+  return {
+    nomination_start_date: nominationRow?.start_at ?? null,
+    nomination_end_date: nominationRow?.end_at ?? null,
+    scoring_start_date: scoringRow?.start_at ?? null,
+    scoring_end_date: scoringRow?.end_at ?? null,
   }
 }

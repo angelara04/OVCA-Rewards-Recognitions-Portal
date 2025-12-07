@@ -1,5 +1,5 @@
 "use client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function ProgressCard({
@@ -7,88 +7,131 @@ export default function ProgressCard({
   title = "Nomination Process",
   durationDays = 10,
   progress = 0,
-  startDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // for demo
-  endDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+  startDate,
+  endDate,
+  status: propStatus,
 }) {
+  const [internalStatus, setInternalStatus] = useState("NOT_STARTED");
   const [timeLeft, setTimeLeft] = useState({});
-  const [status, setStatus] = useState("NOT STARTED");
+
+  // Use the passed prop if available, otherwise use internal state
+  const currentStatus = propStatus || internalStatus;
 
   // Countdown logic
   useEffect(() => {
     if (variant !== "countdown") return;
 
-    const now = new Date();
-    if (now < startDate) {
-      setStatus("NOT STARTED");
+    if (!startDate || !endDate) {
+      if (!propStatus) setInternalStatus("UNSCHEDULED");
       setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
       return;
     }
 
-    const interval = setInterval(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const updateTimer = () => {
       const now = new Date();
-      if (now < startDate) {
-        setStatus("NOT STARTED");
-        return;
-      }
-      const diff = endDate - now;
-      if (diff <= 0) {
-        clearInterval(interval);
-        setStatus("CLOSED");
+
+      if (now < start) {
+        if (!propStatus) setInternalStatus("NOT_STARTED");
         setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
         return;
       }
+
+      const diff = end - now;
+
+      if (diff <= 0) {
+        if (!propStatus) setInternalStatus("CLOSED");
+        setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0 });
+        return;
+      }
+
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
       const mins = Math.floor((diff / (1000 * 60)) % 60);
       const secs = Math.floor((diff / 1000) % 60);
       setTimeLeft({ days, hours, mins, secs });
 
-      if (days <= 1) setStatus("ENDING SOON");
-      else setStatus("OPEN");
-    }, 1000);
+      if (!propStatus) {
+        if (days <= 1) setInternalStatus("ENDING SOON");
+        else setInternalStatus("OPEN");
+      }
+    };
 
+    updateTimer();
+
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [startDate, endDate, variant]);
+  }, [startDate, endDate, variant, propStatus]);
 
   // Progress logic
   useEffect(() => {
     if (variant !== "progress") return;
-    if (progress <= 0) setStatus("NOT STARTED");
-    else if (progress >= 100) setStatus("CLOSED");
-    else if (progress >= 90) setStatus("ALMOST DONE");
-    else setStatus("OPEN");
-  }, [progress, variant]);
+    
+    if (propStatus) return;
+
+    if (progress <= 0) setInternalStatus("NOT_STARTED");
+    else if (progress >= 100) setInternalStatus("CLOSED");
+    else if (progress >= 90) setInternalStatus("ALMOST DONE");
+    else setInternalStatus("OPEN");
+  }, [progress, variant, propStatus]);
 
   // Color mapping
   const statusColors = {
-    "NOT STARTED": "#d1d5db",
-    OPEN: "#15803d",
+    "UNSCHEDULED": "#9ca3af",
+    "NOT_STARTED": "#9ca3af",
+    "OPEN": "#15803d",
     "ENDING SOON": "#eab308",
     "ALMOST DONE": "#eab308",
-    CLOSED: "#701a2f",
+    "CLOSED": "#701a2f",
   };
 
-  const color = statusColors[status];
+  const color = statusColors[currentStatus] || statusColors["NOT_STARTED"];
+  
+  const isInactive = currentStatus === "NOT_STARTED" || currentStatus === "UNSCHEDULED";
+  
   const textColor =
-    status === "CLOSED"
+    currentStatus === "CLOSED"
       ? "text-[#701a2f]"
-      : status === "NOT STARTED"
-      ? "text-gray-500"
+      : isInactive
+      ? "text-[var(--dark-grey)]"
       : "text-green-800";
 
-  const progressValue =
-    variant === "progress"
-      ? progress
-      : Math.max(
-          0,
-          (timeLeft.days / durationDays) * 100 > 100
-            ? 100
-            : (timeLeft.days / durationDays) * 100
-        );
+  // Calculate Progress Value for the Ring
+  let progressValue = 0;
+  
+  if (currentStatus === "CLOSED") {
+      progressValue = 100;
+  } else if (variant === "progress") {
+      progressValue = progress;
+  } else { 
+      // Countdown Logic: Calculate Time Elapsed
+      // durationDays is the TOTAL period length
+      // timeLeft.days is the remaining days
+      
+      const daysRemaining = timeLeft.days ?? 0;
+      // We calculate elapsed days. Note: timeLeft includes partial days via hours/mins, 
+      // but for the visual circle, days precision is usually enough or we'd need timestamps.
+      const elapsed = durationDays - daysRemaining;
+      
+      // Prevent division by zero and negative values
+      if (durationDays > 0) {
+        progressValue = (elapsed / durationDays) * 100;
+      }
+      
+      // Clamp 0-100
+      progressValue = Math.min(Math.max(progressValue, 0), 100);
+  }
+
+  const displayDays = timeLeft.days ?? 0;
+  const displayHours = timeLeft.hours ?? 0;
+  const displayMins = timeLeft.mins ?? 0;
+  const displaySecs = timeLeft.secs ?? 0;
 
   return (
     <motion.div
-      className="flex items-center gap-4 border-[var(--outline-grey)] border-1 rounded-2xl p-6  bg-white max-w-[450px] w-full"
+      className="flex items-center gap-4 border-[var(--outline-grey)] border-1 rounded-2xl p-6 bg-white max-w-[450px] w-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -122,13 +165,13 @@ export default function ProgressCard({
         <div className={`text-center font-semibold ${textColor}`}>
           <div className="text-2xl">
             {variant === "countdown"
-              ? timeLeft.days ?? 0
-              : `${progress.toFixed(0)}%`}
+              ? currentStatus === "CLOSED" ? 0 : displayDays
+              : `${progressValue.toFixed(0)}%`}
           </div>
           <div className="text-xs">
-            {status === "NOT STARTED"
+            {isInactive
               ? "Not started"
-              : status === "CLOSED"
+              : currentStatus === "CLOSED"
               ? "Closed"
               : variant === "countdown"
               ? "days left"
@@ -141,31 +184,28 @@ export default function ProgressCard({
       <div>
         <h2 className="font-bold text-xl">{title}</h2>
         <p className="text-gray-700 text-sm mt-1">
-          {status === "NOT STARTED"
+          {isInactive
             ? "0 days 0 hours 0 mins 0 sec left"
-            : status === "CLOSED"
-            ? `${
-                title.includes("Evaluation") ? "Evaluation" : "Nomination"
-              } has ended`
+            : currentStatus === "CLOSED"
+            ? `${title.includes("Evaluation") ? "Evaluation" : "Nomination"} has ended`
             : variant === "countdown"
-            ? `${timeLeft.days ?? 0} days ${timeLeft.hours ?? 0} hours ${
-                timeLeft.mins ?? 0
-              } mins ${timeLeft.secs ?? 0} sec left`
-            : `${progress.toFixed(0)}% complete`}
+            ? `${displayDays} days ${displayHours} hours ${displayMins} mins ${displaySecs} sec left`
+            : `${progressValue.toFixed(0)}% complete`}
         </p>
 
         <div className="mt-2 text-sm text-gray-500">
           Status:{" "}
           <span
             className={`px-3 py-1 rounded-full border font-semibold ${
-              status === "CLOSED"
-                ? "text-[#701a2f] border-[#701a2f]"
-                : status === "NOT STARTED"
-                ? "text-gray-500 border-gray-400"
-                : "text-green-700 border-green-700"
+              currentStatus === "CLOSED"
+                ? "text-[var(--maroon)] border-[var(--maroon)]"
+                : isInactive
+                ? "text-[var(--dark-grey)] border-[var(--dark-grey)]"
+                : "text-[var(--forest-green)] border-[var(--forest-green)]"
             }`}
           >
-            • {status}
+            {/* Replace underscores with spaces for display */}
+            • {currentStatus.replace(/_/g, " ")}
           </span>
         </div>
       </div>
