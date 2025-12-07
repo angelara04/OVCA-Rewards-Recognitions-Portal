@@ -341,10 +341,12 @@ export default function SeniorPage() {
                 View Documents
               </Button>
               {showModal && (
-                <UploadedFilesModal
-                  onClose={() => setShowModal(false)}
-                  attachments={(reviewContext as any)?.nomination?.attachments || []}
-                />
+                 <UploadedFilesModal
+                    onCloseAction={() => setShowModal(false)}
+                    attachments={(reviewContext as any)?.nomination?.attachments || []}
+                    nominationId={nomineeId}
+                    showToast={showToast}
+                    />
               )}
             </div>
 

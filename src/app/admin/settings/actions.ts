@@ -10,7 +10,7 @@ export type PeriodSetting = {
   is_active: boolean;
 };
 
-export type PeriodStatus = "OPEN" | "RECENTLY_CLOSED" | "UNSCHEDULED";
+export type PeriodStatus = "OPEN" | "CLOSED" | "UNSCHEDULED";
 
 export async function getPortalSettings() {
   const supabase = await createClient();
@@ -100,6 +100,6 @@ export async function getPeriodStatus(key: "nomination_period" | "scoring_period
   gracePeriodEnd.setDate(end.getDate() + 1);
 
   if (now >= start && now <= end) return "OPEN";
-  else if (now > end && now <= gracePeriodEnd) return "RECENTLY_CLOSED";
+  else if (now > end && now <= gracePeriodEnd) return "CLOSED";
   else return "UNSCHEDULED";
 }

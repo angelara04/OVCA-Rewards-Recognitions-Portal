@@ -8,8 +8,9 @@ import CheckboxGroup from "@/components/checkbox";
 import Button from "@/components/button";
 import PerformanceEvaluationForm from "@/components/table/committee-scoring";
 import UploadedFilesModal from "@/components/modals/nominator-documents";
-import { getReviewContext, saveCommitteeReview } from "@/app/admin/committee/actions"; 
+import { getReviewContext, saveCommitteeReview, disqualifyNomination } from "@/app/admin/committee/actions"; 
 import { TriangleAlert, X, CheckCircle } from "lucide-react";
+
 
 const Toast = ({ message, type, onClose }: { message: string; type: "success" | "error"; onClose: () => void }) => {
   useEffect(() => {
@@ -85,6 +86,8 @@ const SubmitConfirmationModal = ({
   )
 }
 
+
+
 export default function JuniorPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -108,6 +111,8 @@ export default function JuniorPage() {
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
   };
+
+const [disqualifying, setDisqualifying] = useState(false);
 
   useEffect(() => {
     if (!nomineeId) {
@@ -250,8 +255,29 @@ export default function JuniorPage() {
       setShowSubmitConfirmation(true);
     }
   }
-
+  const [showDisqualifyConfirm, setShowDisqualifyConfirm] = useState(false);
   const isCompleted = (reviewContext as any)?.isLocked || (reviewContext as any)?.existingReview?.status === "completed";
+   const handleDisqualifyConfirm = async () => {
+  if (!nomineeId) return;
+
+  setShowDisqualifyConfirm(false);
+  setDisqualifying(true);
+
+  try {
+    const res = await disqualifyNomination(nomineeId);
+    if (res.success) {
+      showToast("Nomination disqualified successfully!", "success");
+      router.refresh(); // refresh the page
+    } else {
+      showToast(res.message || "Failed to disqualify nomination.", "error");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Unexpected error occurred.", "error");
+  } finally {
+    setDisqualifying(false);
+  }
+};
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center justify-center p-10">
@@ -303,10 +329,13 @@ export default function JuniorPage() {
               <Button size="sm" variant="primary" onClick={() => setShowModal(true)} className="py-2">View Documents</Button>
               {showModal && (
                 <UploadedFilesModal
-                  onClose={() => setShowModal(false)}
+                  onCloseAction={() => setShowModal(false)}
                   attachments={(reviewContext as any)?.nomination?.attachments || []}
+                  nominationId={nomineeId} 
+                  showToast={showToast} 
                 />
               )}
+
             </div>
 
             <PerformanceEvaluationForm 
@@ -322,6 +351,7 @@ export default function JuniorPage() {
 
             {!isCompleted && reviewContext && (
               <div className="flex justify-end gap-3 mt-8 pb-4">
+
                 <Button size="sm" variant="secondary" onClick={() => handleActionClick("draft")} disabled={!!processingAction}>
                   <div className="px-6 py-2">{processingAction === "draft" ? "Saving..." : "Save as Draft"}</div>
                 </Button>

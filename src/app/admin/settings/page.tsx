@@ -128,7 +128,7 @@ export default function PortalSettingsPage() {
     if (!status) return { text: "Loading...", icon: RefreshCw, color: "text-gray-500", bg: "bg-gray-100" };
     switch (status) {
       case 'OPEN': return { text: "🟢 OPEN (Active)", icon: CheckCircle, color: "text-green-700", bg: "bg-green-100" };
-      case 'RECENTLY_CLOSED': return { text: "🟡 RECENTLY CLOSED", icon: Clock, color: "text-yellow-700", bg: "bg-yellow-100" };
+      case 'CLOSED': return { text: "🟡 RECENTLY CLOSED", icon: Clock, color: "text-yellow-700", bg: "bg-yellow-100" };
       case 'UNSCHEDULED': return { text: "🔴 UNSCHEDULED", icon: XCircle, color: "text-red-700", bg: "bg-red-100" };
       default: return { text: "Error", icon: XCircle, color: "text-gray-500", bg: "bg-gray-100" };
     }
