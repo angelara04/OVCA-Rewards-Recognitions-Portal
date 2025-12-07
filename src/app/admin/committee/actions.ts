@@ -18,6 +18,33 @@ export type CommitteeNomination = {
   nominator_name?: string
   nominator_id: string
 }
+export type NominationReportData = {
+  id: string;
+  nominee_name: string;
+  category: string;
+  submitted_at: string;
+  reviews: {
+    id: string;
+    reviewer_name: string;
+    total_score: number;
+    status: string;
+  }[];
+  average_score: number | "N/A";
+};
+
+export type CommitteeReview = {
+  id: string;
+  reviewer_id: string;
+  nomination_id: string;
+  status: string;
+  total_score: number;
+  scores_json: Record<string, any>;
+  comments?: string;
+  recommendation?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
   const supabase = await createClient();
@@ -296,4 +323,76 @@ export async function getNominationResults(nominationId: string) {
     .eq("status", "completed")
 
   return { nomination, rubric, reviews }
+}
+
+export async function getNominationReport(): Promise<NominationReportData[]> {
+  const supabase = await createClient();
+
+  // Fetch all nominations
+  const { data: nominations, error } = await supabase
+    .from("nominations")
+    .select(`
+      id,
+      nominee_name,
+      category,
+      created_at,
+      reviews(
+        id,
+        total_score,
+        status,
+        reviewer:profiles(name)
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error || !nominations) return [];
+
+  // Map to desired structure
+  const mapped = nominations.map((nom: any) => {
+    const validReviews = (nom.reviews || []).filter((r: any) => r.status === "completed");
+
+    const average_score: number | "N/A" =
+      validReviews.length > 0
+        ? parseFloat(
+            (
+              validReviews.reduce((sum: number, r: any) => sum + (r.total_score || 0), 0) /
+              validReviews.length
+            ).toFixed(2)
+          )
+        : "N/A";
+
+    return {
+      id: nom.id,
+      nominee_name: nom.nominee_name,
+      category: nom.category,
+      submitted_at: nom.created_at,
+      reviews: validReviews.map((r: any) => ({
+        id: r.id,
+        reviewer_name: r.reviewer?.name || "Unknown",
+        total_score: r.total_score,
+        status: r.status,
+      })),
+      average_score,
+    };
+  });
+
+  return mapped;
+}
+
+export async function getCommitteeReviewsForNominee(nominationId: string): Promise<CommitteeReview[]> {
+  const supabase = await createClient();
+
+  const { data: reviews, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("nomination_id", nominationId)
+    .eq("status", "completed")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching committee reviews:", error);
+    return [];
+  }
+
+  return reviews || [];
 }
