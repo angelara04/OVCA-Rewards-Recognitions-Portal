@@ -9,6 +9,8 @@ import { TriangleAlert, X } from "lucide-react"
 export default function LoginPage() {
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
+  // New state to track which action is loading
+  const [loadingType, setLoadingType] = useState<"email" | "google" | null>(null);
   
   // Handle Error Params from Server Action Redirects
   useEffect(() => {
@@ -17,12 +19,31 @@ export default function LoginPage() {
       setError(errorMsg);
       // Clean up URL without refreshing
       window.history.replaceState(null, '', '/login');
+      // If we returned with an error, stop the loading state
+      setLoadingType(null);
     }
   }, [searchParams]);
 
   const handleLogin = async (formData: FormData) => {
-    await login(formData);
+    setLoadingType("email");
+    try {
+      await login(formData);
+      // Note: If login redirects, this code won't run (which is fine).
+      // If it returns without redirecting, we stop loading.
+      setLoadingType(null); 
+    } catch (e) {
+      setLoadingType(null);
+    }
   };
+
+  const handleGoogleLogin = async () => {
+    setLoadingType("google");
+    try {
+      await signWithGoogle();
+    } catch (e) {
+      setLoadingType(null);
+    }
+  }
 
   return (
     <div className="h-screen flex bg-white">
@@ -78,7 +99,9 @@ export default function LoginPage() {
                   label="Email"
                   type="email"
                   placeholder="Enter your email"
-                  width="w-full" />
+                  width="w-full" 
+                  disabled={loadingType !== null}
+                />
               </div>
 
               {/* Password Field */}
@@ -90,6 +113,7 @@ export default function LoginPage() {
                   type="password"
                   placeholder="Enter your password"
                   width="w-full"
+                  disabled={loadingType !== null}
                 />
               </div>
 
@@ -98,13 +122,14 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   variant="primary"
+                  disabled={loadingType !== null}
                   onClick={(e) => {
                     e.preventDefault();
                     handleLogin(new FormData(document.getElementById('auth-form') as HTMLFormElement));
                   }}
-                  className="w-full h-11 text-white font-semibold flex items-center justify-center rounded-md"
+                  className={`w-full h-11 text-white font-semibold flex items-center justify-center rounded-md ${loadingType !== null ? "opacity-70 cursor-not-allowed" : ""}`}
                 >
-                  Sign In
+                  {loadingType === "email" ? "Signing in..." : "Sign In"}
                 </Button>
               </div>
 
@@ -119,13 +144,20 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="maroon"
-                onClick={() => signWithGoogle()}
-                className="w-full h-11 text-white font-semibold flex items-center justify-center gap-2 rounded-md"
+                disabled={loadingType !== null}
+                onClick={() => handleGoogleLogin()}
+                className={`w-full h-11 text-white font-semibold flex items-center justify-center gap-2 rounded-md ${loadingType !== null ? "opacity-70 cursor-not-allowed" : ""}`}
               >
-                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                  <img src="../google-color.svg" alt="Google Logo" className="w-4 h-4" />
-                </div>
-                Login with Google
+                {loadingType === "google" ? (
+                  "Logging in..."
+                ) : (
+                  <>
+                    <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                      <img src="../google-color.svg" alt="Google Logo" className="w-4 h-4" />
+                    </div>
+                    Login with Google
+                  </>
+                )}
               </Button>
             </form>
 
