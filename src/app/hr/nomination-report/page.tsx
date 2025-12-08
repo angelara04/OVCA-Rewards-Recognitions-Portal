@@ -13,6 +13,7 @@ import {
   getNominationReport,
   type NominationReportData,
 } from "@/app/admin/committee/actions";
+import { createClient } from "@/utils/supabase/client";
 import {
   getPeriodStatus,
   type PeriodStatus,
@@ -193,7 +194,7 @@ export default function Page() {
   };
 
   // ---------- PDF Generation ----------
-  const generatePDF = () => {
+  const generatePDF = async () => {
     alert("Generating PDF...");
     if (!filteredData.length) {
       alert("No data to generate PDF");
@@ -206,7 +207,52 @@ export default function Page() {
 
     const summaryData: { name: string; average: string | number }[] = [];
 
-    filteredData.forEach((nominee) => {
+    const supabase = createClient();
+
+    // Batch-fetch all completed reviews for the nominees to reduce roundtrips
+    const nominationIds = filteredData.map((n) => n.nomineeid);
+    let allReviews: any[] = [];
+    try {
+      const { data } = await supabase
+        .from("reviews")
+        .select("*")
+        .in("nomination_id", nominationIds)
+        .eq("status", "completed")
+        .order("created_at", { ascending: true });
+      allReviews = data || [];
+    } catch (err) {
+      console.error("Failed to fetch reviews batch", err);
+      allReviews = [];
+    }
+
+    // Group reviews by nomination_id for quick lookup
+    const reviewsByNomination = new Map<string, any[]>();
+    for (const r of allReviews) {
+      const key = r.nomination_id;
+      if (!reviewsByNomination.has(key)) reviewsByNomination.set(key, []);
+      reviewsByNomination.get(key)!.push(r);
+    }
+
+    // Batch-fetch reviewer profiles used across all reviews
+    const reviewerIds = Array.from(
+      new Set(allReviews.map((r) => r.reviewer_id).filter(Boolean))
+    );
+    let profiles: any[] = [];
+    if (reviewerIds.length > 0) {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", reviewerIds);
+        profiles = data || [];
+      } catch (err) {
+        console.error("Failed to fetch profiles batch", err);
+        profiles = [];
+      }
+    }
+    const profilesById = new Map(profiles.map((p: any) => [String(p.id), p]));
+
+    for (const nominee of filteredData) {
       // Header
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
@@ -220,36 +266,91 @@ export default function Page() {
       doc.text(`Category: ${nominee.category}`, 10, y);
       y += 10;
 
-      // Prepare committee table data
-      const committeeData = (nominee.committeescore || []).map(
-        (score, idx) => ({
+      // Build committeeData from the pre-fetched batch results
+      let committeeData: any[] = [];
+      const reviews = reviewsByNomination.get(nominee.nomineeid) || [];
+      if (reviews.length > 0) {
+        committeeData = reviews.map((review: any, idx: number) => {
+          const reviewerProfile = profilesById.get(String(review.reviewer_id));
+          const reviewerName =
+            reviewerProfile?.name ||
+            String(review.reviewer_id) ||
+            `Reviewer ${idx + 1}`;
+
+          const totalScore = review.total_score ?? "N/A";
+          const status =
+            typeof totalScore === "number" && totalScore >= 70
+              ? "Qualified"
+              : "Disqualified";
+
+          let date = "-";
+          try {
+            const d = new Date(review.updated_at || review.created_at || "");
+            date = isNaN(d.getTime())
+              ? String(review.updated_at || "-")
+              : d.toLocaleDateString("en-PH");
+          } catch {
+            date = String(review.updated_at || "-");
+          }
+
+          return {
+            committee: `C00${idx + 1}`,
+            name: reviewerName,
+            totalScore,
+            status,
+            comment: review.comments || "-",
+            date,
+          };
+        });
+      } else {
+        // Fallback to the existing committeescore array if no reviews are available
+        committeeData = (nominee.committeescore || []).map((score, idx) => ({
           committee: `C00${idx + 1}`,
           name: `Reviewer ${idx + 1}`,
-          score,
-          date: "2025-11-21",
-        })
-      );
+          totalScore: score,
+          status:
+            typeof score === "number" && score >= 70
+              ? "Qualified"
+              : "Disqualified",
+          comment: "-",
+          date: "-",
+        }));
+      }
 
       // Use autoTable for uniform table layout & blue header
       autoTable(doc, {
         startY: y,
-        head: [["Committee", "Name", "Score", "Date"]],
-        body: committeeData.map((c) => [c.committee, c.name, c.score, c.date]),
+        head: [
+          ["Committee", "Name", "Total Score", "Status", "Comment", "Date"],
+        ],
+        body: committeeData.map((c) => [
+          c.committee,
+          c.name,
+          c.totalScore,
+          c.status,
+          c.comment,
+          c.date,
+        ]),
         styles: {
           font: "helvetica",
           fontSize: 11,
-          overflow: "linebreak", // ensures text wraps instead of cutting off
-          cellPadding: 3,
+          overflow: "linebreak",
+          cellPadding: 2,
         },
         headStyles: {
-          fillColor: [0, 123, 255], // blue header
+          fillColor: [0, 123, 255],
           textColor: 255,
           fontStyle: "bold",
         },
         columnStyles: {
-          1: { cellWidth: 60 }, // Name column can wrap
-          3: { cellWidth: 30 },
+          0: { cellWidth: 18 }, // Committee
+          1: { cellWidth: 60 }, // Name
+          2: { cellWidth: 18 }, // Total Score
+          3: { cellWidth: 25 }, // Status
+          4: { cellWidth: 46 }, // Comment
+          5: { cellWidth: 23 }, // Date
         },
+        margin: { left: 10, right: 10 },
         theme: "grid",
       });
 
@@ -257,8 +358,8 @@ export default function Page() {
 
       // Calculate average score
       const validScores = committeeData
-        .filter((c) => typeof c.score === "number")
-        .map((c) => Number(c.score));
+        .filter((c) => typeof c.totalScore === "number")
+        .map((c) => Number(c.totalScore));
       const average =
         validScores.length > 3
           ? (
@@ -276,7 +377,7 @@ export default function Page() {
         doc.addPage();
         y = 10;
       }
-    });
+    }
 
     // Summary page
     doc.addPage();
