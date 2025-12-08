@@ -9,309 +9,136 @@ import NominationReportTable, {
 import PortalStatusBadge from "@/components/portal-status-badge";
 import Section from "@/components/section";
 import { jsPDF } from "jspdf";
-
+import {
+  getNominationReport,
+  type NominationReportData,
+} from "@/app/admin/committee/actions";
+import { createClient } from "@/utils/supabase/client";
+import {
+  getPeriodStatus,
+  type PeriodStatus,
+} from "@/app/admin/settings/actions"; // adjust path if needed
+import autoTable from "jspdf-autotable";
 interface Nomination {
   nomineeid: string;
   nomineename: string;
   category: string;
-  committeescore: string;
-  averagescore: string | number;
+  committeescore: (number | "N/A")[];
+  averagescore: number | "N/A";
   status: "NOT STARTED" | "ON GOING" | "COMPLETED";
   submittedCount?: number;
-  mixedScores?: (number | "N/A")[];
 }
 
 export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isClient, setIsClient] = useState(false);
 
-  //PDF
-  const generatePDF = () => {
-    if (!filteredData.length) {
-      alert("No data to generate PDF");
-      return;
+  // nomination report
+  const [reportData, setReportData] = useState<Nomination[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // period status
+  const [scoringPeriodStatus, setScoringPeriodStatus] =
+    useState<PeriodStatus>("UNSCHEDULED");
+
+  useEffect(() => {
+    async function fetchReport() {
+      setLoading(true);
+      const data = await getNominationReport();
+
+      const mapped: Nomination[] = data.map((n) => {
+        const scores = n.reviews.map((r) => r.total_score ?? "N/A");
+        const validScores = scores.filter(
+          (s) => typeof s === "number"
+        ) as number[];
+
+        // average null if ≤ 3 valid scores
+        const avgScore =
+          validScores.length > 3
+            ? parseFloat(
+                (
+                  validScores.reduce((a, b) => a + b, 0) / validScores.length
+                ).toFixed(2)
+              )
+            : "N/A";
+
+        const submittedCount = validScores.length;
+
+        let status: "NOT STARTED" | "ON GOING" | "COMPLETED" = "NOT STARTED";
+        if (submittedCount === 0) status = "NOT STARTED";
+        else if (submittedCount > 0 && submittedCount < 15) status = "ON GOING";
+        else if (submittedCount >= 15) status = "COMPLETED";
+
+        return {
+          nomineeid: n.id,
+          nomineename: n.nominee_name,
+          category: n.category,
+          committeescore: scores,
+          averagescore: avgScore,
+          submittedCount,
+          status,
+        };
+      });
+
+      setReportData(mapped);
+      setLoading(false);
     }
 
-    const doc = new jsPDF("p", "mm", "a4");
-    const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 10;
+    async function fetchPeriodStatus() {
+      const status = await getPeriodStatus("scoring_period");
+      setScoringPeriodStatus(status);
+    }
 
-    // ← store summary here
-    const summaryData: { name: string; average: string }[] = [];
-
-    filteredData.forEach((nominee) => {
-      // ----------------------
-      // NOMINEE HEADER
-      // ----------------------
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Nominee Name: ${nominee.nomineename}`, 10, y);
-      y += 8;
-
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Nominee ID: ${nominee.nomineeid}`, 10, y);
-      y += 6;
-
-      doc.text(`Category: ${nominee.category}`, 10, y);
-      y += 10;
-
-      // ----------------------
-      // TABLE HEADER
-      // ----------------------
-      doc.setFont("helvetica", "bold");
-      doc.text("Committee ID", 10, y);
-      doc.text("Name", 50, y);
-      doc.text("Score", 110, y);
-      doc.text("Date", 140, y);
-      y += 6;
-
-      doc.setLineWidth(0.2);
-      doc.line(10, y, pageWidth - 10, y);
-      y += 4;
-
-      doc.setFont("helvetica", "normal");
-
-      // ----------------------
-      // MOCK COMMITTEE DATA
-      // (Replace this with real DB records later)
-      // ----------------------
-      const committeeData = [
-        {
-          id: "C001",
-          name: "John Doe",
-          score: nominee.mixedScores?.[0] ?? "N/A",
-          date: "2025-11-21",
-        },
-        {
-          id: "C002",
-          name: "Jane Smith",
-          score: nominee.mixedScores?.[1] ?? "N/A",
-          date: "2025-11-21",
-        },
-        {
-          id: "C003",
-          name: "Alice Tan",
-          score: nominee.mixedScores?.[2] ?? "N/A",
-          date: "2025-11-21",
-        },
-      ];
-
-      // ----------------------
-      // TABLE ROWS
-      // ----------------------
-      committeeData.forEach((c) => {
-        doc.text(c.id, 10, y);
-        doc.text(c.name, 50, y);
-        doc.text(String(c.score), 110, y);
-        doc.text(c.date, 140, y);
-        y += 6;
-
-        if (y > 270) {
-          doc.addPage();
-          y = 10;
-        }
-      });
-
-      // ----------------------
-      // AVERAGE SCORE FOR THIS NOMINEE
-      // ----------------------
-      const validScores = committeeData
-        .filter((c) => typeof c.score === "number")
-        .map((c) => Number(c.score));
-
-      const average =
-        validScores.length > 0
-          ? (
-              validScores.reduce((a, b) => a + b, 0) / validScores.length
-            ).toFixed(2)
-          : "N/A";
-
-      doc.setFont("helvetica", "bold");
-      y += 4;
-      doc.text(`Average Score: ${average}`, 10, y);
-      y += 12;
-
-      // store for summary at the end
-      summaryData.push({
-        name: nominee.nomineename,
-        average: average,
-      });
-
-      if (y > 270) {
-        doc.addPage();
-        y = 10;
-      }
-    });
-
-    // =====================================================
-    // FINAL SUMMARY SECTION
-    // =====================================================
-    doc.addPage();
-    y = 15;
-
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("SCORING SUMMARY", 10, y);
-    y += 10;
-
-    // Summary table header
-    doc.setFontSize(12);
-    doc.text("Nominee Name", 10, y);
-    doc.text("Average Score", 140, y);
-    y += 6;
-
-    doc.line(10, y, pageWidth - 10, y);
-    y += 4;
-
-    // Summary rows
-    doc.setFont("helvetica", "normal");
-    summaryData.forEach((item) => {
-      doc.text(item.name, 10, y);
-      doc.text(String(item.average), 140, y);
-      y += 7;
-
-      if (y > 270) {
-        doc.addPage();
-        y = 10;
-      }
-    });
-
-    doc.save("nomination-report.pdf");
-  };
-
-  // per-nominee total committee members
-  const totalMembersPerNominee = 15;
-
-  // ---------- SAMPLE DATA: 15 rows (1..15) ----------
-  const [data, setData] = useState<Nomination[]>(
-    // combine 3 groups (NOT STARTED, ON GOING, COMPLETED), each 5 rows => total 15
-    // COMMENT OUT THE SECTIONS FOR TESTING DIFFERENT REPORT STATUSES
-    // YOU CAN ALSO COMMENT OUT ALL SECTIONS TO SEE EMPTY STATUS
-    [
-      // 1-5 NOT STARTED
-      // ...Array(5)
-      //   .fill(null)
-      //   .map((_, i) => ({
-      //     nomineeid: `E0125${1000 + i}`, // E01251000 .. E01251004
-      //     nomineename: `Maria Del Santos ${i + 1}`, // 1..5
-      //     category: "Administrative Excellence",
-      //     committeescore: "",
-      //     averagescore: "",
-      //     status: "NOT STARTED" as const,
-      //     submittedCount: 0,
-      //     mixedScores: ["N/A", "N/A", "N/A"] as (number | "N/A")[],
-      //   })),
-      // // 6-10 ON GOING (submittedCount < totalMembersPerNominee)
-      // ...Array(5)
-      //   .fill(null)
-      //   .map((_, i) => {
-      //     const idx = i + 5 // to get 5..9 offsets for ids/names
-      //     const mixed = [
-      //       idx % 2 === 0 ? 85 : "N/A",
-      //       idx % 3 === 0 ? "N/A" : 90,
-      //       idx % 2 === 1 ? 88 : "N/A",
-      //     ] as (number | "N/A")[]
-      //     // set submittedCount to something < totalMembersPerNominee (ongoing)
-      //     const submitted = 5 + (i % 5) // 5..9
-      //     return {
-      //       nomineeid: `E0125${1000 + idx}`,
-      //       nomineename: `Maria Del Santos ${idx + 1}`, // 6..10
-      //       category: "Administrative Excellence",
-      //       committeescore: "", // will render mixedScores visually
-      //       averagescore: "",
-      //       status: "ON GOING" as const,
-      //       submittedCount: submitted,
-      //       mixedScores: mixed,
-      //     }
-      //   }),
-      // 11-15 COMPLETED (submittedCount == totalMembersPerNominee)
-      ...Array(5)
-        .fill(null)
-        .map((_, i) => {
-          const idx = i + 10; // 10..14 -> name 11..15
-          const scores = [85, 90, 88];
-          const avg = (
-            scores.reduce((a, b) => a + b, 0) / scores.length
-          ).toFixed(2); // 2 decimal places
-          return {
-            nomineeid: `E0125${1000 + idx}`,
-            nomineename: `Maria Del Santos ${idx + 1}`, // 11..15
-            category: "Administrative Excellence",
-            committeescore: scores.join(", "),
-            averagescore: avg, // string like "87.67"
-            status: "COMPLETED" as const,
-            submittedCount: totalMembersPerNominee, // completed => full submissions
-            mixedScores: scores,
-          };
-        }),
-    ]
-  );
+    fetchReport();
+    fetchPeriodStatus();
+  }, []);
 
   // ------------- FILTER -------------
   const filteredData = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter((d) =>
+    if (!q) return reportData;
+    return reportData.filter((d) =>
       Object.values(d).join(" ").toLowerCase().includes(q)
     );
-  }, [searchQuery, data]);
+  }, [searchQuery, reportData]);
 
   // ---------- AGGREGATES & STATUS LOGIC ----------
-  // total capacity = number of nominees * members per nominee
-  const totalCapacity = data.length * totalMembersPerNominee;
-  const totalSubmitted = data.reduce(
+  const totalMembersPerNominee = 15;
+  const totalCapacity = reportData.length * totalMembersPerNominee;
+  const totalSubmitted = reportData.reduce(
     (sum, d) => sum + (d.submittedCount || 0),
     0
   );
 
-  // counts by row status (nominees)
-  const completedNomineeCount = data.filter(
+  const completedNomineeCount = reportData.filter(
     (d) => d.status === "COMPLETED"
   ).length;
-  const ongoingNomineeCount = data.filter(
+  const ongoingNomineeCount = reportData.filter(
     (d) => d.status === "ON GOING"
   ).length;
-  const notStartedNomineeCount = data.filter(
-    (d) => d.status === "NOT STARTED"
-  ).length;
 
-  // derive the overall reportStatus from row statuses
   let reportStatus: "NOT STARTED" | "ON GOING" | "COMPLETED";
-  if (completedNomineeCount === data.length && data.length > 0) {
+  if (completedNomineeCount === reportData.length && reportData.length > 0) {
     reportStatus = "COMPLETED";
   } else if (
     ongoingNomineeCount > 0 ||
-    (completedNomineeCount > 0 && completedNomineeCount < data.length)
+    (completedNomineeCount > 0 && completedNomineeCount < reportData.length)
   ) {
     reportStatus = "ON GOING";
   } else {
     reportStatus = "NOT STARTED";
   }
 
-  // UI config
   const getReportUIConfig = (status: string) => {
     switch (status) {
       case "NOT STARTED":
-        return {
-          bgColor: "bg-[var(--light-red)]",
-          buttonDisabled: true,
-        };
+        return { bgColor: "bg-[var(--light-red)]", buttonDisabled: true };
       case "ON GOING":
-        return {
-          bgColor: "bg-[var(--light-purple)]",
-          buttonDisabled: true,
-        };
+        return { bgColor: "bg-[var(--light-purple)]", buttonDisabled: true };
       case "COMPLETED":
-        return {
-          bgColor: "bg-[var(--light-green)]",
-          buttonDisabled: false,
-        };
+        return { bgColor: "bg-[var(--light-green)]", buttonDisabled: false };
       default:
-        return {
-          bgColor: "bg-[var(--settings-grey)]",
-          buttonDisabled: true,
-        };
+        return { bgColor: "bg-[var(--settings-grey)]", buttonDisabled: true };
     }
   };
 
@@ -327,13 +154,12 @@ export default function Page() {
       key: "committeescore",
       label: "Committee Score",
       width: 180,
-      render: (value: string, row: Nomination) => {
-        if (row.status === "NOT STARTED") return "---";
-        const scores = row.mixedScores || ["N/A", "N/A", "N/A"];
+      render: (value: (number | "N/A")[], row: Nomination) => {
+        if (row.status === "NOT STARTED") return "null";
+        const scores = value || ["N/A", "N/A", "N/A"];
         return (
           <div className="flex gap-2">
-            {scores.map((score: number | "N/A", idx: number) => (
-              // SQUARE DESIGN FOR COMMITTEE SCORES
+            {scores.map((score, idx) => (
               <div
                 key={idx}
                 className={`w-8 h-6 text-xs flex items-center justify-center rounded ${
@@ -353,30 +179,238 @@ export default function Page() {
       key: "averagescore",
       label: "Average Score",
       width: 150,
-      render: (value: string | number, row: Nomination) => {
-        // if numeric string or number, show with max 2 decimals (if number), otherwise show as is
-        if (value === "" || value === null || value === undefined) return "---";
-        if (typeof value === "number") {
-          return (Math.round(value * 100) / 100).toFixed(2);
-        }
-        // value is string (maybe already toFixed), but ensure two decimals if numeric-like
-        const parsed = Number(value);
-        if (!isNaN(parsed)) {
-          return parsed.toFixed(2);
-        }
-        return value;
+      render: (value: number | "N/A") => {
+        if (value === "N/A") return "null";
+        return (Math.round(value * 100) / 100).toFixed(2);
       },
     },
   ];
 
-  // Fix 1: New function names to match component props
   const handleDownload = (row: Nomination, index: number) => {
     console.log("Download action triggered for:", row);
   };
-
-  // Fix 2: New function for View action
   const handleView = (row: Nomination, index: number) => {
     console.log("View action triggered for:", row);
+  };
+
+  // ---------- PDF Generation ----------
+  const generatePDF = async () => {
+    alert("Generating PDF...");
+    if (!filteredData.length) {
+      alert("No data to generate PDF");
+      return;
+    }
+
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 10;
+
+    const summaryData: { name: string; average: string | number }[] = [];
+
+    const supabase = createClient();
+
+    // Batch-fetch all completed reviews for the nominees to reduce roundtrips
+    const nominationIds = filteredData.map((n) => n.nomineeid);
+    let allReviews: any[] = [];
+    try {
+      const { data } = await supabase
+        .from("reviews")
+        .select("*")
+        .in("nomination_id", nominationIds)
+        .eq("status", "completed")
+        .order("created_at", { ascending: true });
+      allReviews = data || [];
+    } catch (err) {
+      console.error("Failed to fetch reviews batch", err);
+      allReviews = [];
+    }
+
+    // Group reviews by nomination_id for quick lookup
+    const reviewsByNomination = new Map<string, any[]>();
+    for (const r of allReviews) {
+      const key = r.nomination_id;
+      if (!reviewsByNomination.has(key)) reviewsByNomination.set(key, []);
+      reviewsByNomination.get(key)!.push(r);
+    }
+
+    // Batch-fetch reviewer profiles used across all reviews
+    const reviewerIds = Array.from(
+      new Set(allReviews.map((r) => r.reviewer_id).filter(Boolean))
+    );
+    let profiles: any[] = [];
+    if (reviewerIds.length > 0) {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, name")
+          .in("id", reviewerIds);
+        profiles = data || [];
+      } catch (err) {
+        console.error("Failed to fetch profiles batch", err);
+        profiles = [];
+      }
+    }
+    const profilesById = new Map(profiles.map((p: any) => [String(p.id), p]));
+
+    for (const nominee of filteredData) {
+      // Header
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Nominee Name: ${nominee.nomineename}`, 10, y);
+      y += 8;
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Nominee ID: ${nominee.nomineeid}`, 10, y);
+      y += 6;
+      doc.text(`Category: ${nominee.category}`, 10, y);
+      y += 10;
+
+      // Build committeeData from the pre-fetched batch results
+      let committeeData: any[] = [];
+      const reviews = reviewsByNomination.get(nominee.nomineeid) || [];
+      if (reviews.length > 0) {
+        committeeData = reviews.map((review: any, idx: number) => {
+          const reviewerProfile = profilesById.get(String(review.reviewer_id));
+          const reviewerName =
+            reviewerProfile?.name ||
+            String(review.reviewer_id) ||
+            `Reviewer ${idx + 1}`;
+
+          const totalScore = review.total_score ?? "N/A";
+          const status =
+            typeof totalScore === "number" && totalScore >= 70
+              ? "Qualified"
+              : "Disqualified";
+
+          let date = "-";
+          try {
+            const d = new Date(review.updated_at || review.created_at || "");
+            date = isNaN(d.getTime())
+              ? String(review.updated_at || "-")
+              : d.toLocaleDateString("en-PH");
+          } catch {
+            date = String(review.updated_at || "-");
+          }
+
+          return {
+            committee: `C00${idx + 1}`,
+            name: reviewerName,
+            totalScore,
+            status,
+            comment: review.comments || "-",
+            date,
+          };
+        });
+      } else {
+        // Fallback to the existing committeescore array if no reviews are available
+        committeeData = (nominee.committeescore || []).map((score, idx) => ({
+          committee: `C00${idx + 1}`,
+          name: `Reviewer ${idx + 1}`,
+          totalScore: score,
+          status:
+            typeof score === "number" && score >= 70
+              ? "Qualified"
+              : "Disqualified",
+          comment: "-",
+          date: "-",
+        }));
+      }
+
+      // Use autoTable for uniform table layout & blue header
+      autoTable(doc, {
+        startY: y,
+        head: [
+          ["Committee", "Name", "Total Score", "Status", "Comment", "Date"],
+        ],
+        body: committeeData.map((c) => [
+          c.committee,
+          c.name,
+          c.totalScore,
+          c.status,
+          c.comment,
+          c.date,
+        ]),
+        styles: {
+          font: "helvetica",
+          fontSize: 11,
+          overflow: "linebreak",
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [0, 123, 255],
+          textColor: 255,
+          fontStyle: "bold",
+        },
+        columnStyles: {
+          0: { cellWidth: 18 }, // Committee
+          1: { cellWidth: 60 }, // Name
+          2: { cellWidth: 18 }, // Total Score
+          3: { cellWidth: 25 }, // Status
+          4: { cellWidth: 46 }, // Comment
+          5: { cellWidth: 23 }, // Date
+        },
+        margin: { left: 10, right: 10 },
+        theme: "grid",
+      });
+
+      y = (doc as any).lastAutoTable.finalY + 4;
+
+      // Calculate average score
+      const validScores = committeeData
+        .filter((c) => typeof c.totalScore === "number")
+        .map((c) => Number(c.totalScore));
+      const average =
+        validScores.length > 3
+          ? (
+              validScores.reduce((a, b) => a + b, 0) / validScores.length
+            ).toFixed(2)
+          : "N/A";
+
+      doc.setFont("helvetica", "bold");
+      doc.text(`Average Score: ${average}`, 10, y);
+      y += 12;
+
+      summaryData.push({ name: nominee.nomineename, average });
+
+      if (y > 270) {
+        doc.addPage();
+        y = 10;
+      }
+    }
+
+    // Summary page
+    doc.addPage();
+    y = 15;
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("SCORING SUMMARY", 10, y);
+    y += 10;
+
+    // Use autoTable for summary
+    autoTable(doc, {
+      startY: y,
+      head: [["Nominee Name", "Average Score"]],
+      body: summaryData.map((item) => [item.name, item.average]),
+      styles: {
+        font: "helvetica",
+        fontSize: 11,
+        overflow: "linebreak",
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [0, 123, 255],
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 30 },
+      },
+      theme: "grid",
+    });
+
+    doc.save("nomination-report.pdf");
   };
 
   useEffect(() => {
@@ -390,7 +424,7 @@ export default function Page() {
         height="min-h-screen"
         alignment="items-center p-10"
       >
-        {/* Header */}
+        {/* HEADER + LOADING PLACEHOLDER */}
         <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
           <div>
             <h1 className="text-[28px] font-bold text-[var(--black)]">
@@ -406,40 +440,28 @@ export default function Page() {
           </Button>
         </div>
 
-        {/* Content */}
         <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
-          <h2 className="text-[18px] font-bold text-gray-900 mb-6">
-            Committee Scoring Summary
-          </h2>
-
-          <SearchBar
-            value={searchQuery}
-            onChange={(val: string) => setSearchQuery(val)}
-            placeholder="Search by nominee name"
-          />
-
-          <div className="mt-4 flex flex-col w-full relative">
-            {hasResults ? (
-              // FIX 3: Update prop names here
-              <NominationReportTable
-                columns={columns}
-                data={filteredData}
-                onDownloadAction={handleDownload}
-                onViewAction={handleView}
-              />
-            ) : (
-              <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
-                <FolderX size={100} className="mb-4 opacity-70" />
-                <p className="font-bold text-3xl">No Results Found</p>
-              </div>
-            )}
-          </div>
+          <p>Loading...</p>
         </div>
+      </Section>
+    );
+  }
 
-        <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm mt-10 px-6 py-6 flex flex-col relative content-area">
-          <h2 className="text-[18px] font-bold text-gray-900 mb-6">
-            Gawad Tsanselor Final Report
-          </h2>
+  // While the nomination report is being fetched, show a full-page loading overlay
+  if (loading) {
+    return (
+      <Section
+        width="w-full"
+        height="min-h-screen"
+        alignment="items-center p-10"
+      >
+        <div className="relative w-full min-h-screen">
+          <div className="absolute inset-0 flex flex-col items-center justify-center h-full gap-3">
+            <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--dark-grey)] text-sm font-medium">
+              Loading...
+            </p>
+          </div>
         </div>
       </Section>
     );
@@ -463,7 +485,7 @@ export default function Page() {
         </Button>
       </div>
 
-      {/* Content */}
+      {/* Committee Scoring Summary */}
       <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm px-6 py-6 flex flex-col relative content-area">
         <h2 className="text-[18px] font-bold text-gray-900 mb-6">
           Committee Scoring Summary
@@ -477,12 +499,10 @@ export default function Page() {
 
         <div className="mt-4 flex flex-col w-full relative">
           {hasResults ? (
-            // FIX 4: Update prop names here
             <NominationReportTable
               columns={columns}
               data={filteredData}
               onDownloadAction={handleDownload}
-              onViewAction={handleView}
             />
           ) : (
             <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500 border border-[var(--outline-grey)] rounded-md">
@@ -493,12 +513,12 @@ export default function Page() {
         </div>
       </div>
 
+      {/* Final Report */}
       <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm mt-10 px-6 py-6 flex flex-col relative content-area">
         <h2 className="text-[18px] font-bold text-gray-900 mb-6">
           Gawad Tsanselor Final Report
         </h2>
 
-        {/* SUMMARY BAR - uses the SAME reportStatus as above */}
         <div
           className={`w-full ${bgColor} rounded-sm min-h-[10vh] py-4 px-4 mb-2 relative pr-24`}
         >
@@ -515,26 +535,39 @@ export default function Page() {
             />
           </div>
 
-          {/* status text */}
           <p className="text-sm text-[var(--dark-grey)]">
             {reportStatus === "NOT STARTED" &&
               "No committee reviews submitted yet"}
             {reportStatus === "ON GOING" &&
-              `${completedNomineeCount} of ${data.length} nominees reviewed`}
+              `${completedNomineeCount} of ${reportData.length} nominees reviewed`}
             {reportStatus === "COMPLETED" && "All committee reviews completed"}
           </p>
         </div>
 
-        {/* Generate button */}
         <Button
           size="sm"
-          variant={buttonDisabled ? "disabled" : "primary"}
-          disabled={buttonDisabled}
+          // variant={
+          //   buttonDisabled || scoringPeriodStatus !== "OPEN"
+          //     ? "disabled"
+          //     : "primary"
+          // }
+          variant="primary"
+          // disabled={buttonDisabled || scoringPeriodStatus !== "OPEN"}
           className="w-full"
           onClick={generatePDF}
         >
           <div className="px-4 py-2">Generate Report</div>
         </Button>
+
+        {/* Optional: show scoring period status */}
+        {scoringPeriodStatus !== "OPEN" && (
+          <p className="text-sm text-[var(--dark-grey)] mt-2">
+            {scoringPeriodStatus === "RECENTLY_CLOSED" &&
+              "Scoring period recently closed."}
+            {scoringPeriodStatus === "UNSCHEDULED" &&
+              "Scoring period not yet scheduled."}
+          </p>
+        )}
       </div>
     </Section>
   );

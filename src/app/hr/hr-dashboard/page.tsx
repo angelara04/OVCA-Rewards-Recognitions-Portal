@@ -10,7 +10,7 @@ import Table from '@/components/table/hr-registration-table'
 import DropdownMenu from '@/components/dropdown-menu'
 import ConfirmModal from '@/components/confirm-modal'
 import { useRouter } from 'next/navigation'
-import { getDashboardCounts, getAllRegistrations  } from './actions'
+import { getDashboardCounts, getAllRegistrations, getPortalSettings, type PortalSettings } from './actions'
 
 interface Employee {
   id: string
@@ -22,6 +22,9 @@ interface Employee {
   dateRegistered?: string
 }
 
+// Explicit status types based on your requirements
+type PortalStatus = 'OPEN' | 'CLOSED' | 'UNSCHEDULED' | 'NOT_STARTED';
+
 export default function Page() {
   const [counts, setCounts] = useState({
     nominations: 0,
@@ -31,13 +34,14 @@ export default function Page() {
   })
 
   const [profiles, setProfiles] = useState<Employee[]>([])
+  const [settings, setSettings] = useState<PortalSettings | null>(null)
+  
   const [loading, setLoading] = useState(true)
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null)
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
   const [modalData, setModalData] = useState<{ action: 'approve' | 'reject'; name: string } | null>(null)
   const router = useRouter()
 
-  // Table columns
   const columns = [
     { key: 'id', label: 'ID' },
     { key: 'name', label: 'Name' },
@@ -48,31 +52,95 @@ export default function Page() {
     { key: 'dateRegistered', label: 'Date Registered' },
   ]
 
-  // Load dashboard counts & profiles
-async function loadData() {
-  setLoading(true)
-  try {
-    const [dashboardCounts, all] = await Promise.all([
-      getDashboardCounts(),
-      getAllRegistrations(),
-    ])
+  async function loadData() {
+    setLoading(true)
+    try {
+      const [dashboardCounts, all, portalSettings] = await Promise.all([
+        getDashboardCounts(),
+        getAllRegistrations(),
+        getPortalSettings(),
+      ])
 
-    setCounts(dashboardCounts)
-    setProfiles(all)
-  } catch (err) {
-    console.error('Error loading HR dashboard data:', err)
-  } finally {
-    setLoading(false)
+      setCounts(dashboardCounts)
+      setProfiles(all)
+      setSettings(portalSettings)
+    } catch (err) {
+      console.error('Error loading HR dashboard data:', err)
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   useEffect(() => {
     loadData()
   }, [])
 
+  // --- Helper to calculate props for ProgressCard ---
+  const getCardProps = (startDateStr: string | null, endDateStr: string | null) => {
+    const now = new Date()
+    const start = startDateStr ? new Date(startDateStr) : null
+    const end = endDateStr ? new Date(endDateStr) : null
+
+    // 1. UNSCHEDULED: Missing either date
+    if (!start || !end) {
+      return { 
+        status: 'UNSCHEDULED' as PortalStatus, 
+        startDate: undefined,
+        endDate: undefined, 
+        progress: 0, 
+        durationDays: 0 
+      }
+    }
+
+    // 2. CLOSED: Past end date
+    if (now > end) {
+      return { 
+        status: 'CLOSED' as PortalStatus, 
+        startDate: start,
+        endDate: end, 
+        progress: 100, 
+        durationDays: 0 
+      }
+    }
+
+    // 3. NOT STARTED: Future start date
+    if (now < start) {
+      return { 
+        status: 'NOT_STARTED' as PortalStatus, 
+        startDate: start,
+        endDate: undefined, 
+        progress: 0, 
+        durationDays: 0 
+      }
+    }
+
+    // 4. OPEN: Currently active
+    const totalDuration = end.getTime() - start.getTime()
+    const elapsed = now.getTime() - start.getTime()
+    
+    // Avoid division by zero
+    const safeTotalDuration = totalDuration > 0 ? totalDuration : 1; 
+    const rawProgress = (elapsed / safeTotalDuration) * 100
+    const progress = Math.min(Math.max(rawProgress, 0), 100)
+
+    // Calculate TOTAL DURATION in days (Total Period Length)
+    // Pass the total duration so the card can calculate "Time Elapsed" circle correctly
+    const durationDays = Math.ceil(totalDuration / (1000 * 60 * 60 * 24));
+
+    return { 
+      status: 'OPEN' as PortalStatus, 
+      startDate: start,
+      endDate: end, 
+      progress, 
+      durationDays 
+    }
+  }
+
+  const nominationProps = getCardProps(settings?.nomination_start_date ?? null, settings?.nomination_end_date ?? null)
+  const committeeProps = getCardProps(settings?.scoring_start_date ?? null, settings?.scoring_end_date ?? null)
+
   const hasResults = profiles.length > 0
 
-  // Dropdown position for table actions
   function openActionsDropdown(e: React.MouseEvent, index: number) {
     const button = e.currentTarget as HTMLElement
     const container = button.closest('.table-container') as HTMLElement | null
@@ -119,26 +187,45 @@ async function loadData() {
         <Section width="w-full" alignment="p-10 mb-5">
           <div className="flex flex-row justify-between">
             <span className="font-bold text-2xl">Portal Status</span>
-            <div className="flex flex-row gap-2 rounded-2xl p-2 transition-all duration-200 ease-out hover:scale-103 hover:-translate-y-0 hover:cursor-pointer motion-safe:transform">
+            <div 
+              className="flex flex-row gap-2 rounded-2xl p-2 transition-all duration-200 ease-out hover:scale-103 hover:-translate-y-0 hover:cursor-pointer motion-safe:transform"
+              onClick={() => router.push('/hr/portal-settings')} 
+            >
               <span className="text-[14px] text-[var(--forest-green)]">Manage Settings</span>
               <MoveRight className="text-[var(--forest-green)]" />
             </div>
           </div>
 
-          {/* Placeholder Progress Cards (keep as-is) */}
           <div className="flex flex-col justify-center gap-4 mt-4 w-full lg:flex-row items-center">
-            <ProgressCard
-              variant="countdown"
-              title="Nomination Process"
-              durationDays={10}
-              endDate={new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)}
-            />
-            <ProgressCard
-              variant="progress"
-              title="Committee Evaluation"
-              progress={100}
-              durationDays={10}
-            />
+            {loading ? (
+              // Loading Skeleton
+              <>
+                <div className="w-full h-48 bg-gray-100 rounded-xl animate-pulse border border-gray-200" />
+                <div className="w-full h-48 bg-gray-100 rounded-xl animate-pulse border border-gray-200" />
+              </>
+            ) : (
+              <>
+                {/* Nomination Card - Countdown Mode */}
+                <ProgressCard
+                  variant="countdown"
+                  title="Nomination Process"
+                  status={nominationProps.status}
+                  startDate={nominationProps.startDate}
+                  endDate={nominationProps.endDate}
+                  durationDays={nominationProps.durationDays}
+                />
+                
+                {/* Committee Card - Countdown Mode */}
+                <ProgressCard
+                  variant="countdown"
+                  title="Committee Evaluation"
+                  status={committeeProps.status}
+                  startDate={committeeProps.startDate}
+                  endDate={committeeProps.endDate}
+                  durationDays={committeeProps.durationDays}
+                />
+              </>
+            )}
           </div>
         </Section>
 

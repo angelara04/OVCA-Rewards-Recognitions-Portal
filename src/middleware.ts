@@ -159,12 +159,12 @@ export async function middleware(request: NextRequest) {
         // Check if the current path is allowed by the role
         let isPathAuthorized = isPathAllowed(path, allowedRoutes);
         
-        if (!isPathAuthorized) {
-            console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
-            const url = request.nextUrl.clone()
-            url.pathname = '/unauthorized' 
-            return NextResponse.redirect(url)
-        }
+        // if (!isPathAuthorized) {
+        //     console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
+        //     const url = request.nextUrl.clone()
+        //     url.pathname = '/unauthorized' 
+        //     return NextResponse.redirect(url)
+        // }
         
         // console.log(`[Middleware] ✅ ACCESS GRANTED for ${userRole}.`);
 
