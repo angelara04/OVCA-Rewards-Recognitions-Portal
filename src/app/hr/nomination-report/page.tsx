@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, use } from "react";
 import { FolderX } from "lucide-react";
 import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
@@ -13,6 +13,7 @@ import {
   getNominationReport,
   type NominationReportData,
 } from "@/app/admin/committee/actions";
+import AlertBanner from "@/components/alertBanner";
 import { createClient } from "@/utils/supabase/client";
 import {
   getPeriodStatus,
@@ -33,6 +34,13 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isClient, setIsClient] = useState(false);
 
+  const [alert, setAlert] = useState<{
+    visible: boolean;
+    title?: string;
+    message?: string;
+    variant?: "error" | "warning" | "success";
+  }>({ visible: false });
+
   // nomination report
   const [reportData, setReportData] = useState<Nomination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +51,6 @@ export default function Page() {
 
   useEffect(() => {
     async function fetchReport() {
-      setLoading(true);
       const data = await getNominationReport();
 
       const mapped: Nomination[] = data.map((n) => {
@@ -81,16 +88,19 @@ export default function Page() {
       });
 
       setReportData(mapped);
-      setLoading(false);
     }
 
     async function fetchPeriodStatus() {
       const status = await getPeriodStatus("scoring_period");
       setScoringPeriodStatus(status);
     }
+    async function loadAll() {
+      setLoading(true);
+      await Promise.all([fetchReport(), fetchPeriodStatus()]);
+      setLoading(false);
+    }
 
-    fetchReport();
-    fetchPeriodStatus();
+    loadAll();
   }, []);
 
   // ------------- FILTER -------------
@@ -110,28 +120,22 @@ export default function Page() {
     0
   );
 
-  const completedNomineeCount = reportData.filter(
-    (d) => d.status === "COMPLETED"
-  ).length;
-  const ongoingNomineeCount = reportData.filter(
-    (d) => d.status === "ON GOING"
-  ).length;
-
-  let reportStatus: "NOT STARTED" | "ON GOING" | "COMPLETED";
-  if (completedNomineeCount === reportData.length && reportData.length > 0) {
-    reportStatus = "COMPLETED";
-  } else if (
-    ongoingNomineeCount > 0 ||
-    (completedNomineeCount > 0 && completedNomineeCount < reportData.length)
-  ) {
-    reportStatus = "ON GOING";
-  } else {
-    reportStatus = "NOT STARTED";
-  }
+  // Map period status (from getPeriodStatus) to evaluation status used in admin/settings
+  // 'OPEN' -> 'ONGOING', 'CLOSED' -> 'COMPLETED', 'UNSCHEDULED' -> 'NO_SCHEDULE'
+  const evaluationStatus = (() => {
+    switch (scoringPeriodStatus) {
+      case "OPEN":
+        return "ON GOING" as const;
+      case "CLOSED":
+        return "COMPLETED" as const;
+      default:
+        return "NO SCHEDULE" as const;
+    }
+  })();
 
   const getReportUIConfig = (status: string) => {
     switch (status) {
-      case "NOT STARTED":
+      case "NO SCHEDULE":
         return { bgColor: "bg-[var(--light-red)]", buttonDisabled: true };
       case "ON GOING":
         return { bgColor: "bg-[var(--light-purple)]", buttonDisabled: true };
@@ -142,8 +146,18 @@ export default function Page() {
     }
   };
 
-  const { bgColor, buttonDisabled } = getReportUIConfig(reportStatus);
+  const { bgColor, buttonDisabled } = getReportUIConfig(evaluationStatus);
   const hasResults = filteredData.length > 0;
+
+  // Button enable/disable: only enable when evaluationStatus is COMPLETED
+  const isGenerateEnabled = evaluationStatus === "COMPLETED";
+
+  // Button styling to match Figma: green for Completed, pink/purple for Ongoing, red for Not Started/Unscheduled
+  const generateButtonClass = isGenerateEnabled
+    ? "bg-[var(--forest-green)] hover:bg-[var(--forest-green)] text-white"
+    : evaluationStatus === "ON GOING"
+    ? "bg-[var(--dark-purple)] text-white opacity-95 cursor-not-allowed"
+    : "bg-[var(--outline-grey)] text-black opacity-95 cursor-not-allowed";
 
   // ---------- TABLE COLUMNS ----------
   const columns: Column[] = [
@@ -195,9 +209,13 @@ export default function Page() {
 
   // ---------- PDF Generation ----------
   const generatePDF = async () => {
-    alert("Generating PDF...");
     if (!filteredData.length) {
-      alert("No data to generate PDF");
+      setAlert({
+        visible: true,
+        title: "No data",
+        message: "No data to generate PDF",
+        variant: "error",
+      });
       return;
     }
 
@@ -469,6 +487,14 @@ export default function Page() {
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
+      {alert.visible && (
+        <AlertBanner
+          title={alert.title || "Alert"}
+          message={alert.message || ""}
+          variant={alert.variant || "error"}
+          onClose={() => setAlert({ visible: false })}
+        />
+      )}
       {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
@@ -532,42 +558,39 @@ export default function Page() {
               variant="report"
               totalMembers={totalCapacity}
               submittedCount={totalSubmitted}
+              evaluationStatus={evaluationStatus}
             />
           </div>
 
           <p className="text-sm text-[var(--dark-grey)]">
-            {reportStatus === "NOT STARTED" &&
+            {evaluationStatus === "NO SCHEDULE" &&
               "No committee reviews submitted yet"}
-            {reportStatus === "ON GOING" &&
-              `${completedNomineeCount} of ${reportData.length} nominees reviewed`}
-            {reportStatus === "COMPLETED" && "All committee reviews completed"}
+            {evaluationStatus === "ON GOING" &&
+              `${reportData.length} nominees reviewed`}
+            {evaluationStatus === "COMPLETED" &&
+              "All committee reviews completed"}
           </p>
         </div>
 
         <Button
           size="sm"
-          // variant={
-          //   buttonDisabled || scoringPeriodStatus !== "OPEN"
-          //     ? "disabled"
-          //     : "primary"
-          // }
-          variant="primary"
-          // disabled={buttonDisabled || scoringPeriodStatus !== "OPEN"}
-          className="w-full"
+          variant={isGenerateEnabled ? "primary" : "disabled"}
+          disabled={!isGenerateEnabled}
+          className={`w-full ${generateButtonClass}`}
           onClick={generatePDF}
         >
           <div className="px-4 py-2">Generate Report</div>
         </Button>
 
         {/* Optional: show scoring period status */}
-        {scoringPeriodStatus !== "OPEN" && (
+        {/* {scoringPeriodStatus !== "OPEN" && (
           <p className="text-sm text-[var(--dark-grey)] mt-2">
-            {scoringPeriodStatus === "RECENTLY_CLOSED" &&
+            {scoringPeriodStatus === "CLOSED" &&
               "Scoring period recently closed."}
             {scoringPeriodStatus === "UNSCHEDULED" &&
               "Scoring period not yet scheduled."}
           </p>
-        )}
+        )} */}
       </div>
     </Section>
   );
