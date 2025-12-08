@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/utils/supabase/server"
+import { revalidatePath } from "next/cache"
 
 // Define the shape of the data
 export type CommitteeNomination = {
@@ -14,9 +15,36 @@ export type CommitteeNomination = {
   global_review_count: number
   my_review_id?: string
   evaluation_result?: string 
-  nominator_name?:string
-  nominator_id:string
+  nominator_name?: string
+  nominator_id: string
 }
+export type NominationReportData = {
+  id: string;
+  nominee_name: string;
+  category: string;
+  submitted_at: string;
+  reviews: {
+    id: string;
+    reviewer_name: string;
+    total_score: number;
+    status: string;
+  }[];
+  average_score: number | "N/A";
+};
+
+export type CommitteeReview = {
+  id: string;
+  reviewer_id: string;
+  nomination_id: string;
+  status: string;
+  total_score: number;
+  scores_json: Record<string, any>;
+  comments?: string;
+  recommendation?: string;
+  created_at: string;
+  updated_at: string;
+};
+
 
 export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]> {
   const supabase = await createClient();
@@ -25,15 +53,6 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
 
   const myUserId = authData.user.id;
 
-  // 🔥 1. Get total committee reviewers dynamically
-  const { data: committeeMembers } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("role", "committee");
-
-  const committeeCount = committeeMembers?.length || 0;
-
-  // 2. Fetch nominations and their reviews
   const { data: nominations, error } = await supabase
     .from("nominations")
     .select(`
@@ -70,11 +89,8 @@ export async function getCommitteeDashboardData(): Promise<CommitteeNomination[]
     };
   });
 
-  
   return mapped
 }
-
-
 
 export async function getReviewContext(nominationId: string) {
   const supabase = await createClient();
@@ -92,6 +108,14 @@ export async function getReviewContext(nominationId: string) {
 
   if (!nomination) return { error: "Nomination not found" };
 
+  // --- 🔥 NEW CONSTRAINT: Block Reviewing Own Nomination ---
+  if (nomination.created_by === userId) {
+    return { 
+      error: "Conflict of Interest: You cannot review a nomination you submitted yourself." 
+    };
+  }
+  // ---------------------------------------------------------
+
   // Fetch Rubric
   const { data: rubric } = await supabase
     .from("rubrics")
@@ -107,7 +131,7 @@ export async function getReviewContext(nominationId: string) {
     .eq("reviewer_id", userId)
     .maybeSingle();
 
-  // 🔥 Fetch number of committee members
+  // Fetch number of committee members
   const { data: committeeMembers } = await supabase
     .from("profiles")
     .select("id")
@@ -124,7 +148,6 @@ export async function getReviewContext(nominationId: string) {
 
   const globalCompletedCount = count || 0;
 
-  // 🔥 Dynamic Lock Logic
   const isLocked =
     globalCompletedCount >= committeeCount &&
     myReview?.status !== "completed";
@@ -137,30 +160,62 @@ export async function getReviewContext(nominationId: string) {
   };
 }
 
-
-// --- UPDATED SAVE ACTION WITH CALCULATION LOGIC ---
+// --- UPDATED SAVE ACTION WITH CONSTRAINT CHECK ---
 export async function saveCommitteeReview(formData: FormData) {
   const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   if (!auth?.user) return { success: false, message: "Unauthorized" }
 
   const nominationId = formData.get("nomination_id") as string
-  const action = formData.get("action") as string
+  const action = formData.get("action") as string // "draft" or "submit"
   
-  // Parse scores
+  // --- 🔥 NEW SECURITY CHECK: Verify Ownership Before Saving ---
+  const { data: checkNom } = await supabase
+    .from("nominations")
+    .select("created_by")
+    .eq("id", nominationId)
+    .single();
+    
+  if (checkNom && checkNom.created_by === auth.user.id) {
+     return { success: false, message: "Action Blocked: You cannot review your own nomination." }
+  }
+  // -----------------------------------------------------------
+
   const rawData = Object.fromEntries(formData.entries())
   const comments = rawData.comments as string
   
-  const scoresJson: Record<string, number> = {}
+  // Changed to 'any' to allow saving the metadata object
+  const scoresJson: Record<string, any> = {}
   let myTotalScore = 0
 
+  // 1. Capture Breakdown Data + Supervisor Details
+  const breakdownData = {
+    y2022: parseFloat(rawData["y2022"] as string) || 0,
+    y2023: parseFloat(rawData["y2023"] as string) || 0,
+    y2024: parseFloat(rawData["y2024"] as string) || 0,
+    supervisor: rawData["supervisor"] as string || "", 
+    unit: rawData["unit"] as string || ""              
+  }
+
+  // 2. Filter out non-score keys (Critical to prevent math errors)
+  const excludedKeys = [
+      "nomination_id", "action", "comments", "recommendation", 
+      "y2022", "y2023", "y2024", "supervisor", "unit"
+  ]; 
+
   Object.keys(rawData).forEach((key) => {
-    if (!["nomination_id", "action", "comments", "recommendation"].includes(key)) {
-      const score = Number(rawData[key]) || 0
+    if (!excludedKeys.includes(key)) {
+      // Use parseFloat to preserve decimals (e.g. 53.33)
+      const score = parseFloat(rawData[key] as string) || 0
       scoresJson[key] = score
       myTotalScore += score
     }
   })
+
+  // 3. Inject Breakdown Data as Metadata
+  scoresJson["meta_ipcr_breakdown"] = breakdownData;
+
+  myTotalScore = parseFloat(myTotalScore.toFixed(2))
 
   const status = action === "submit" ? "completed" : "in_progress"
 
@@ -182,22 +237,27 @@ export async function saveCommitteeReview(formData: FormData) {
   // 2. IF SUBMITTING: Check if we need to calculate the Final Verdict
   if (action === "submit") {
     
-    // Count how many finished reviews exist now
+    // CASE A. Count total committee members needed
+    const { count: totalCommitteeCount } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "committee");
+    
+    // CASE B. Count how many finished reviews exist now (including the one we just saved)
     const { data: allReviews } = await supabase
       .from("reviews")
       .select("total_score")
       .eq("nomination_id", nominationId)
       .eq("status", "completed")
 
-    // If we hit the magic number 3
-    if (allReviews && allReviews.length >= 3) {
+    // If ALL committee members have submitted
+    if (allReviews && totalCommitteeCount && allReviews.length >= totalCommitteeCount) {
       
-      // A. Calculate Average
+      // Calculate Average
       const sumOfReviewers = allReviews.reduce((sum, r) => sum + (r.total_score || 0), 0)
       const averageScore = sumOfReviewers / allReviews.length
 
-      // B. Get Max Possible Score from Rubric
-      // We need to fetch the nomination first to get the category
+      // Get Max Possible Score
       const { data: nom } = await supabase
         .from("nominations")
         .select("category")
@@ -210,14 +270,13 @@ export async function saveCommitteeReview(formData: FormData) {
         .eq("category", nom?.category)
         .single()
       
-      // Sum up the 'max' fields in the criteria JSON
       const maxPossibleScore = (rubric?.criteria as any[]).reduce((sum: number, item: any) => sum + (item.max || 0), 0)
 
-      // C. The 70% Logic
+      // The 70% Logic
       const passingScore = maxPossibleScore * 0.70
       const finalVerdict = averageScore >= passingScore ? "Qualified" : "Disqualified"
 
-      // D. Update the Nomination Record
+      // Update the Nomination Record
       await supabase
         .from("nominations")
         .update({ evaluation_result: finalVerdict })
@@ -225,30 +284,35 @@ export async function saveCommitteeReview(formData: FormData) {
     }
   }
 
-  return { success: true, message: action === "submit" ? "Review submitted!" : "Draft saved." }
+  // Revalidate pages so dashboards update immediately
+  revalidatePath("/committee");
+  revalidatePath("/admin/committee");
+
+  return { success: true, message: action === "submit" ? "Review submitted successfully!" : "Draft saved successfully." }
 }
 
 export async function getNominationResults(nominationId: string) {
   const supabase = await createClient()
 
-  // 1. Fetch Nomination Details
+  // 1. Fetch Nomination Details + Attachments + Nominator Name
   const { data: nomination } = await supabase
     .from("nominations")
-    .select("*, attachments(*)")
+    .select(`
+      *, 
+      attachments(*),
+      nominator:profiles!created_by ( name ) 
+    `)
     .eq("id", nominationId)
     .single()
 
   if (!nomination) return { error: "Nomination not found" }
 
-  // 2. Fetch the Rubric (To know the MAX possible score)
   const { data: rubric } = await supabase
     .from("rubrics")
     .select("*")
     .eq("category", nomination.category)
     .single()
 
-  // 3. Fetch Reviews + Reviewer Names (Joined with profiles)
-  // Note: This assumes you have a 'profiles' table linked to auth.users
   const { data: reviews } = await supabase
     .from("reviews")
     .select(`
@@ -259,4 +323,76 @@ export async function getNominationResults(nominationId: string) {
     .eq("status", "completed")
 
   return { nomination, rubric, reviews }
+}
+
+export async function getNominationReport(): Promise<NominationReportData[]> {
+  const supabase = await createClient();
+
+  // Fetch all nominations
+  const { data: nominations, error } = await supabase
+    .from("nominations")
+    .select(`
+      id,
+      nominee_name,
+      category,
+      created_at,
+      reviews(
+        id,
+        total_score,
+        status,
+        reviewer:profiles(name)
+      )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error || !nominations) return [];
+
+  // Map to desired structure
+  const mapped = nominations.map((nom: any) => {
+    const validReviews = (nom.reviews || []).filter((r: any) => r.status === "completed");
+
+    const average_score: number | "N/A" =
+      validReviews.length > 0
+        ? parseFloat(
+            (
+              validReviews.reduce((sum: number, r: any) => sum + (r.total_score || 0), 0) /
+              validReviews.length
+            ).toFixed(2)
+          )
+        : "N/A";
+
+    return {
+      id: nom.id,
+      nominee_name: nom.nominee_name,
+      category: nom.category,
+      submitted_at: nom.created_at,
+      reviews: validReviews.map((r: any) => ({
+        id: r.id,
+        reviewer_name: r.reviewer?.name || "Unknown",
+        total_score: r.total_score,
+        status: r.status,
+      })),
+      average_score,
+    };
+  });
+
+  return mapped;
+}
+
+export async function getCommitteeReviewsForNominee(nominationId: string): Promise<CommitteeReview[]> {
+  const supabase = await createClient();
+
+  const { data: reviews, error } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("nomination_id", nominationId)
+    .eq("status", "completed")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching committee reviews:", error);
+    return [];
+  }
+
+  return reviews || [];
 }

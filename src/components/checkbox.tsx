@@ -6,6 +6,7 @@ interface Option {
   onChange: (value: string, checked: boolean) => void;
   options: { label: string; value: string }[];
   values: string[];
+  disabled?: boolean; // ⬅ added
 }
 
 export default function CheckboxGroup({
@@ -14,13 +15,12 @@ export default function CheckboxGroup({
   options,
   onChange,
   values,
+  disabled = false, // ⬅ default false
 }: Option) {
   return (
     <div className="flex flex-col">
-      {/* Label */}
       <span className="mb-2 text-[15px]">{label}</span>
 
-      {/* Options */}
       <div className="flex flex-col gap-2">
         {options.map((option, index) => (
           <div key={index} className="flex flex-row gap-2 items-center">
@@ -31,9 +31,17 @@ export default function CheckboxGroup({
               value={option.value}
               checked={values.includes(option.value)}
               onChange={(e) => onChange(e.target.value, e.target.checked)}
-              className="appearance-auto w-4 h-4 border-1 border-[var(--outline-grey)] rounded-none bg-[var(--white)] checked:bg-[var(--grey)]"
+              disabled={disabled} // ⬅ now supports disabled
+              className={`appearance-auto w-4 h-4 border-1 border-[var(--outline-grey)] rounded-none bg-[var(--white)] 
+                ${
+                  disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
             />
-            <label htmlFor={`${name}-${index}`} className="text-[15px]">
+
+            <label
+              htmlFor={`${name}-${index}`}
+              className={`text-[15px] ${disabled ? "opacity-50" : ""}`}
+            >
               {option.label}
             </label>
           </div>

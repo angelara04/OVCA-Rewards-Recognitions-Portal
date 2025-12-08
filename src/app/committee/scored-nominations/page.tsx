@@ -5,8 +5,12 @@ import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/committee-table";
 import DropdownMenu from "@/components/dropdown-menu";
+import { useRouter } from "next/navigation";
 import Section from "@/components/section";
-import { getCommitteeDashboardData, getNominationResults } from "@/app/admin/committee/actions";
+import {
+  getCommitteeDashboardData,
+  getNominationResults,
+} from "@/app/admin/committee/actions";
 
 interface Employee {
   nomineeid: string;
@@ -20,6 +24,7 @@ interface Employee {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [data, setData] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,40 +45,46 @@ export default function Page() {
 
       // 2️⃣ Filter only completed reviews
       const completedNominations: Employee[] = (
-  await Promise.all(
-    nominations.map(async (nom) => {
-      if (nom.my_status !== "Completed") return null;
+        await Promise.all(
+          nominations.map(async (nom) => {
+            if (nom.my_status !== "Completed") return null;
 
-      const result = await getNominationResults(nom.id);
-      const totalScore =
-        result.reviews?.reduce((sum: number, r: any) => sum + (r.total_score || 0), 0) || 0;
+            const result = await getNominationResults(nom.id);
+            const totalScore =
+              result.reviews?.reduce(
+                (sum: number, r: any) => sum + (r.total_score || 0),
+                0
+              ) || 0;
 
-      const maxScore = result.rubric?.criteria?.reduce(
-        (sum: number, c: any) => sum + (c.max || 0),
-        0
-      ) || 100;
+            const maxScore =
+              result.rubric?.criteria?.reduce(
+                (sum: number, c: any) => sum + (c.max || 0),
+                0
+              ) || 100;
 
-      const avgScore = totalScore / (result.reviews?.length || 1);
-      const status = avgScore >= maxScore * 0.7 ? "Qualified" : "Disqualified";
+            const avgScore = totalScore / (result.reviews?.length || 1);
+            const status =
+              avgScore >= maxScore * 0.7 ? "Qualified" : "Disqualified";
 
-      const latestReviewDate = result.reviews?.[0]?.updated_at
-        ? new Date(result.reviews[0].updated_at).toLocaleDateString("en-PH")
-        : "";
+            const latestReviewDate = result.reviews?.[0]?.updated_at
+              ? new Date(result.reviews[0].updated_at).toLocaleDateString(
+                  "en-PH"
+                )
+              : "";
 
-      return {
-        nomineeid: nom.id,
-        nomineename: nom.nominee_name,
-        category: nom.category,
-        nominatorid: nom.nominator_id,
-        nominatorname: nom.nominator_name || "",
-        datescored: latestReviewDate,
-        totalscore: avgScore,
-        status,
-      };
-    })
-  )
-).filter((x): x is Employee => x !== null); // ✅ TypeScript now knows nulls are removed
-
+            return {
+              nomineeid: nom.id,
+              nomineename: nom.nominee_name,
+              category: nom.category,
+              nominatorid: nom.nominator_id,
+              nominatorname: nom.nominator_name || "",
+              datescored: latestReviewDate,
+              totalscore: avgScore,
+              status,
+            };
+          })
+        )
+      ).filter((x): x is Employee => x !== null); // ✅ TypeScript now knows nulls are removed
 
       setData(completedNominations.filter(Boolean) as Employee[]);
       setLoading(false);
@@ -102,6 +113,24 @@ export default function Page() {
     { key: "totalscore", label: "Total Score" },
     { key: "status", label: "Status" },
   ];
+
+  const getCategorySlug = (category: string) => {
+    if (!category || category.trim() === "") return "unknown";
+    switch (category.trim()) {
+      case "Non-Teaching Personnel (Junior and Industrial Level)":
+        return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
+        return "junior";
+      case "Non-Teaching Personnel (Senior Level)":
+        return "senior";
+      case "Non-Teaching Personnel (Non-Supervisory Level)":
+        return "non-supervisory";
+      default:
+        return category.toLowerCase().replace(/\s+/g, "-");
+    }
+  };
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
@@ -132,57 +161,61 @@ export default function Page() {
 
         <div className="mt-4 border border-[var(--outline-grey)] rounded-md bg-[var(--white)] min-h-[60vh] flex flex-col w-full relative">
           {loading ? (
-  <div className="flex flex-col items-center justify-center h-[60vh] gap-3 w-full">
-    <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
-    <p className="text-[var(--dark-grey)] text-sm font-medium">Loading...</p>
-  </div>
-) : hasResults ? (
-  <div className="w-full overflow-auto">
-    <Table
-      columns={columns}
-      data={filteredData}
-      renderActions={(_row, i) => {
-        const employee = filteredData[i];
-        const isInteractive =
-          employee.status === "Qualified" ||
-          employee.status === "Disqualified";
-        const iconColor = isInteractive
-          ? "text-[var(--maroon)]"
-          : "text-[var(--outline-grey)]";
-        const cursor = isInteractive
-          ? "cursor-pointer"
-          : "cursor-not-allowed";
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-3 w-full">
+              <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+              <p className="text-[var(--dark-grey)] text-sm font-medium">
+                Loading...
+              </p>
+            </div>
+          ) : hasResults ? (
+            <div className="w-full overflow-auto">
+              <Table
+                columns={columns}
+                data={filteredData}
+                renderActions={(_row, i) => {
+                  const employee = filteredData[i];
+                  const isInteractive =
+                    employee.status === "Qualified" ||
+                    employee.status === "Disqualified";
+                  const iconColor = isInteractive
+                    ? "text-[var(--maroon)]"
+                    : "text-[var(--outline-grey)]";
+                  const cursor = isInteractive
+                    ? "cursor-pointer"
+                    : "cursor-not-allowed";
 
-        return (
-          <button
-            disabled={!isInteractive}
-            className={`${iconColor} ${cursor}`}
-            onClick={(e) => {
-              if (!isInteractive) return;
-              const buttonRect = e.currentTarget.getBoundingClientRect();
-              const containerRect = document
-                .querySelector(".content-area")!
-                .getBoundingClientRect();
-              setDropdownPosition({
-                top: buttonRect.bottom - containerRect.top + 4,
-                left: buttonRect.left - containerRect.left - 90,
-              });
-              setOpenDropdownIndex(openDropdownIndex === i ? null : i);
-            }}
-          >
-            <MoreHorizontal size={18} />
-          </button>
-        );
-      }}
-    />
-  </div>
-) : (
-  <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
-    <FolderX size={100} className="mb-4 opacity-70" />
-    <p className="font-bold text-3xl">No Results Found</p>
-  </div>
-)}
-
+                  return (
+                    <button
+                      disabled={!isInteractive}
+                      className={`${iconColor} ${cursor}`}
+                      onClick={(e) => {
+                        if (!isInteractive) return;
+                        const buttonRect =
+                          e.currentTarget.getBoundingClientRect();
+                        const containerRect = document
+                          .querySelector(".content-area")!
+                          .getBoundingClientRect();
+                        setDropdownPosition({
+                          top: buttonRect.bottom - containerRect.top + 4,
+                          left: buttonRect.left - containerRect.left - 90,
+                        });
+                        setOpenDropdownIndex(
+                          openDropdownIndex === i ? null : i
+                        );
+                      }}
+                    >
+                      <MoreHorizontal size={18} />
+                    </button>
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center w-full h-full text-gray-500">
+              <FolderX size={100} className="mb-4 opacity-70" />
+              <p className="font-bold text-3xl">No Results Found</p>
+            </div>
+          )}
         </div>
 
         {typeof window !== "undefined" &&
@@ -196,7 +229,42 @@ export default function Page() {
                   label: "View",
                   color: "text-black",
                   onClickAction: () => {
-                    console.log("View", filteredData[openDropdownIndex!]);
+                    const sel = filteredData[openDropdownIndex!];
+                    if (!sel) return setOpenDropdownIndex(null);
+
+                    // derive slug from category
+                    // const category = sel.category || "";
+                    // let slug = category
+                    //   .toLowerCase()
+                    //   .trim()
+                    //   .replace(/[^a-z0-9\s-]/g, "")
+                    //   .replace(/\s+/g, "-");
+
+                    // // normalize known categories
+                    // if (
+                    //   category ===
+                    //   "Non-Teaching Personnel (Junior and Industrial Level)"
+                    // )
+                    //   slug = "junior";
+                    // if (category === "Non-Teaching Personnel (Senior Level)")
+                    //   slug = "senior";
+                    // if (
+                    //   category ===
+                    //   "Non-Teaching Personnel (Non-Supervisory Level)"
+                    // )
+                    //   slug = "non-supervisory";
+
+                    const categorySlug = getCategorySlug(sel.category);
+
+                    const id = sel.nomineeid;
+                    const params = new URLSearchParams();
+                    params.set("nomineeid", sel.nomineeid);
+                    params.set("nomineename", sel.nomineename);
+                    params.set("category", sel.category);
+
+                    router.push(
+                      `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
+                    );
                     setOpenDropdownIndex(null);
                   },
                 },

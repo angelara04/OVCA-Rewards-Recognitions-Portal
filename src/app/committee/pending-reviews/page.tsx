@@ -6,8 +6,12 @@ import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/committee-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import Section from "@/components/section";
+import { useRouter } from "next/navigation";
 
-import { getCommitteeDashboardData, type CommitteeNomination } from "@/app/admin/committee/actions";
+import {
+  getCommitteeDashboardData,
+  type CommitteeNomination,
+} from "@/app/admin/committee/actions";
 
 interface Nominee {
   nomineeid: string;
@@ -20,12 +24,36 @@ interface Nominee {
 }
 
 export default function PendingReviewPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(
+    null
+  );
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [data, setData] = useState<Nominee[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const getCategorySlug = (category: string) => {
+    if (!category || category.trim() === "") return "unknown";
+    switch (category.trim()) {
+      case "Non-Teaching Personnel (Junior and Industrial Level)":
+        return "junior";
+      case "Junior Professionals (SG 1 - 8)":
+        return "junior";
+      case "Industrial and Allied Professionals (SG 1 - 8)":
+        return "junior";
+      case "Non-Teaching Personnel (Senior Level)":
+        return "senior";
+      case "Non-Teaching Personnel (Non-Supervisory Level)":
+        return "non-supervisory";
+      default:
+        return category.toLowerCase().replace(/\s+/g, "-");
+    }
+  };
 
   // Fetch reviewer nominations where this user has NOT completed review
   useEffect(() => {
@@ -35,7 +63,8 @@ export default function PendingReviewPage() {
       setFetchError(null);
 
       try {
-        const serverRows: CommitteeNomination[] = await getCommitteeDashboardData();
+        const serverRows: CommitteeNomination[] =
+          await getCommitteeDashboardData();
         if (!mounted) return;
 
         // Only rows where this reviewer has NOT completed
@@ -63,7 +92,9 @@ export default function PendingReviewPage() {
     }
 
     load();
-    return () => { mounted = false };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const filteredData = useMemo(() => {
@@ -92,7 +123,9 @@ export default function PendingReviewPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
-          <h1 className="text-[28px] font-bold text-[var(--black)]">Pending Review</h1>
+          <h1 className="text-[28px] font-bold text-[var(--black)]">
+            Pending Review
+          </h1>
           <p className="text-base text-[var(--dark-grey)]">
             Nominations awaiting your committee review and scoring
           </p>
@@ -114,7 +147,9 @@ export default function PendingReviewPage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
               <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
-              <p className="text-[var(--dark-grey)] text-sm font-medium">Loading...</p>
+              <p className="text-[var(--dark-grey)] text-sm font-medium">
+                Loading...
+              </p>
             </div>
           ) : fetchError ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-red-500">
@@ -128,7 +163,7 @@ export default function PendingReviewPage() {
                 data={filteredData}
                 renderActions={(row, i) => {
                   const nom = filteredData[i];
-                  const isClickable = nom.status !== "Completed"; 
+                  const isClickable = nom.status !== "Completed";
                   return (
                     <button
                       disabled={!isClickable}
@@ -139,13 +174,19 @@ export default function PendingReviewPage() {
                       }`}
                       onClick={(e) => {
                         if (!isClickable) return;
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        const container = document.querySelector(".content-area")!.getBoundingClientRect();
+                        const rect = (
+                          e.currentTarget as HTMLElement
+                        ).getBoundingClientRect();
+                        const container = document
+                          .querySelector(".content-area")!
+                          .getBoundingClientRect();
                         setDropdownPosition({
                           top: rect.bottom - container.top + 4,
                           left: rect.left - container.left - 90,
                         });
-                        setOpenDropdownIndex(openDropdownIndex === i ? null : i);
+                        setOpenDropdownIndex(
+                          openDropdownIndex === i ? null : i
+                        );
                       }}
                     >
                       <MoreHorizontal size={18} />
@@ -175,7 +216,18 @@ export default function PendingReviewPage() {
                   color: "text-black",
                   onClickAction: () => {
                     const item = filteredData[openDropdownIndex!];
-                    console.log("Evaluate", item);
+                    const id = item.nomineeid;
+                    const categorySlug = getCategorySlug(item.category);
+
+                    const params = new URLSearchParams();
+                    params.set("nomineeid", item.nomineeid);
+                    params.set("nomineename", item.nomineename);
+                    params.set("category", item.category);
+
+                    router.push(
+                      `/committee/committee-scoring/${categorySlug}/${id}?${params.toString()}`
+                    );
+
                     setOpenDropdownIndex(null);
                   },
                 },

@@ -16,13 +16,15 @@ const ROLE_PERMISSIONS = {
         '/login',
         '/registry',
         '/pending',
-        '/admin'
+        '/admin',
+        '/portal-closed'
     ],
     nominator: [
         '/nominators',
     ],
     committee: [
         '/committee',
+        '/nominators',
     ],
     hr: [
         '/hr',
@@ -137,7 +139,6 @@ export async function middleware(request: NextRequest) {
                 //  console.log(`[Middleware] ⛔ NO-ROLE USER RESTRICTED. Redirecting to /login.`);
                  const url = request.nextUrl.clone();
                  url.pathname = '/login';
-                 return NextResponse.redirect(url);
              }
              return supabaseResponse;
         }
@@ -158,14 +159,65 @@ export async function middleware(request: NextRequest) {
         // Check if the current path is allowed by the role
         let isPathAuthorized = isPathAllowed(path, allowedRoutes);
         
-        if (!isPathAuthorized) {
-            // console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
-            const url = request.nextUrl.clone()
-            url.pathname = '/unauthorized' 
-            return NextResponse.redirect(url)
-        }
+        // if (!isPathAuthorized) {
+        //     console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
+        //     const url = request.nextUrl.clone()
+        //     url.pathname = '/unauthorized' 
+        //     return NextResponse.redirect(url)
+        // }
         
         // console.log(`[Middleware] ✅ ACCESS GRANTED for ${userRole}.`);
+
+if (path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
+            const { data: setting } = await supabase
+                .from('portal_settings')
+                .select('start_at, end_at, is_active')
+                .eq('setting_key', 'nomination_period')
+                .single()
+
+            let isOpen = false;
+
+            if (setting && setting.is_active && setting.start_at && setting.end_at) {
+                const now = new Date();
+                const start = new Date(setting.start_at);
+                const end = new Date(setting.end_at);
+                isOpen = now >= start && now <= end;
+            }
+
+            if (!isOpen) {
+                const url = request.nextUrl.clone();
+                url.pathname = '/admin/portal-closed';
+                url.searchParams.set('reason', 'nomination');
+                url.searchParams.set('source', 'nominator'); 
+                return NextResponse.redirect(url);
+            }
+        }
+
+        // 2. COMMITTEE RESTRICTION (Locks EVERYTHING including profile)
+        if (path.startsWith('/committee') && !path.startsWith('/portal-closed')) {
+            const { data: setting } = await supabase
+                .from('portal_settings')
+                .select('start_at, end_at, is_active')
+                .eq('setting_key', 'scoring_period')
+                .single()
+
+            let isOpen = false;
+
+            if (setting && setting.is_active && setting.start_at && setting.end_at) {
+                const now = new Date();
+                const start = new Date(setting.start_at);
+                const end = new Date(setting.end_at);
+                isOpen = now >= start && now <= end;
+            }
+
+            if (!isOpen) {
+                const url = request.nextUrl.clone();
+                url.pathname = '/admin/portal-closed';
+                url.searchParams.set('reason', 'scoring');
+                url.searchParams.set('source', 'committee');
+                return NextResponse.redirect(url);
+            }
+        }
     }
 
     return supabaseResponse
