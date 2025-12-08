@@ -325,6 +325,57 @@ export async function getNominationResults(nominationId: string) {
   return { nomination, rubric, reviews }
 }
 
+export async function getMyScoreForNomination(nominationId: string) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+
+  if (!auth?.user) return null;
+
+  const { data } = await supabase
+    .from("reviews")
+    .select("total_score")
+    .eq("nomination_id", nominationId)
+    .eq("reviewer_id", auth.user.id)
+    .maybeSingle();
+
+  return data?.total_score ?? null;
+}
+
+export async function disqualifyNomination(nominationId: string) {
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth?.user) return { success: false, message: "Unauthorized" };
+
+  try {
+    // Set all scores to 0 and mark as submitted
+    const { error } = await supabase
+      .from("reviews")
+      .upsert({
+        nomination_id: nominationId,
+        reviewer_id: auth.user.id,
+        scores_json: {}, // all scores 0
+        total_score: 0,
+        comments: "Disqualified",
+        status: "completed",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "nomination_id, reviewer_id" });
+
+    if (error) return { success: false, message: error.message };
+
+    // Optionally update nomination evaluation_result
+    await supabase
+      .from("nominations")
+      .update({ evaluation_result: "Disqualified" })
+      .eq("id", nominationId);
+
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: "Unexpected error" };
+  }
+}
+
+
 export async function getNominationReport(): Promise<NominationReportData[]> {
   const supabase = await createClient();
 

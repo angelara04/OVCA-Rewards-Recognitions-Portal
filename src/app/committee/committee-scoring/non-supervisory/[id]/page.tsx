@@ -234,9 +234,12 @@ export default function NonSupervisoryPage() {
               <Button size="sm" variant="primary" onClick={() => setShowModal(true)} className="py-2">View Documents</Button>
               {showModal && (
                 <UploadedFilesModal
-                  onClose={() => setShowModal(false)}
+                  onCloseAction={() => setShowModal(false)}
                   attachments={(reviewContext as any)?.nomination?.attachments || []}
+                  nominationId={nomineeId}
+                  showToast={showToast}
                 />
+
               )}
             </div>
 

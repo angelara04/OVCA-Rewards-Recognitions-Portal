@@ -10,6 +10,7 @@ import Section from "@/components/section";
 import {
   getCommitteeDashboardData,
   getNominationResults,
+  getMyScoreForNomination,
 } from "@/app/admin/committee/actions";
 
 interface Employee {
@@ -36,62 +37,57 @@ export default function Page() {
     left: number;
   } | null>(null);
 
-  useEffect(() => {
-    async function fetchScored() {
-      setLoading(true);
+useEffect(() => {
+  async function fetchScored() {
+    setLoading(true);
 
-      // 1️⃣ Get all nominations for committee dashboard
-      const nominations = await getCommitteeDashboardData();
+    const nominations = await getCommitteeDashboardData();
 
-      // 2️⃣ Filter only completed reviews
-      const completedNominations: Employee[] = (
-        await Promise.all(
-          nominations.map(async (nom) => {
-            if (nom.my_status !== "Completed") return null;
+    const completedNominations: Employee[] = (
+      await Promise.all(
+        nominations.map(async (nom) => {
+          if (nom.my_status !== "Completed") return null;
 
-            const result = await getNominationResults(nom.id);
-            const totalScore =
-              result.reviews?.reduce(
-                (sum: number, r: any) => sum + (r.total_score || 0),
-                0
-              ) || 0;
+          // Get your personal score
+          const myScore = await getMyScoreForNomination(nom.id);
+          if (myScore === null) return null; // Should not happen but safe
 
-            const maxScore =
-              result.rubric?.criteria?.reduce(
-                (sum: number, c: any) => sum + (c.max || 0),
-                0
-              ) || 100;
+          // Fetch rubric to determine max possible score
+          const result = await getNominationResults(nom.id);
+          const maxScore =
+            result.rubric?.criteria?.reduce(
+              (sum: number, c: any) => sum + (c.max || 0),
+              0
+            ) || 100;
 
-            const avgScore = totalScore / (result.reviews?.length || 1);
-            const status =
-              avgScore >= maxScore * 0.7 ? "Qualified" : "Disqualified";
+          const status =
+            myScore >= maxScore * 0.7 ? "Qualified" : "Disqualified";
 
-            const latestReviewDate = result.reviews?.[0]?.updated_at
-              ? new Date(result.reviews[0].updated_at).toLocaleDateString(
-                  "en-PH"
-                )
-              : "";
+          const latestReviewDate = result.reviews?.[0]?.updated_at
+            ? new Date(result.reviews[0].updated_at).toLocaleDateString("en-PH")
+            : "";
 
-            return {
-              nomineeid: nom.id,
-              nomineename: nom.nominee_name,
-              category: nom.category,
-              nominatorid: nom.nominator_id,
-              nominatorname: nom.nominator_name || "",
-              datescored: latestReviewDate,
-              totalscore: avgScore,
-              status,
-            };
-          })
-        )
-      ).filter((x): x is Employee => x !== null); // ✅ TypeScript now knows nulls are removed
+          return {
+            nomineeid: nom.id,
+            nomineename: nom.nominee_name,
+            category: nom.category,
+            nominatorid: nom.nominator_id,
+            nominatorname: nom.nominator_name || "",
+            datescored: latestReviewDate,
+            totalscore: myScore, // ← THIS IS THE SCORE YOU WANT
+            status,
+          };
+        })
+      )
+    ).filter((x): x is Employee => x !== null);
 
-      setData(completedNominations.filter(Boolean) as Employee[]);
-      setLoading(false);
-    }
+    setData(completedNominations);
+    setLoading(false);
+  }
 
-    fetchScored();
-  }, []);
+  fetchScored();
+}, []);
+
 
   const filteredData = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

@@ -1,32 +1,22 @@
 'use client';
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Button from "@/components/button";
 import { Power, X, TriangleAlert } from "lucide-react";
 import Section from "@/components/section";
 import Input from "@/components/input";
 import PortalStatusBadge from "@/components/portal-status-badge";
 import AlertBanner from "@/components/alertBanner";
+import {
+  getPortalData,
+  saveAllSettings,
+  resetPortal,
+  type PeriodSetting,
+} from "@/app/admin/settings/actions";
 
-// Helper to check if a saved end date has passed
-const checkIfClosed = (endDate: string | null) => {
-  if (!endDate) return false; 
-  const end = new Date(endDate);
-  const today = new Date();
-  // Check if today is after the end date
-  return today < end; // Changed to check if date is in the future (not closed)
-};
+// --- Types ---
+type AdminStatus = "UNSCHEDULED" | "PUBLISHED" | "OPEN" | "CLOSED";
 
-// Helper to check if a date is in the past
-const isDateInPast = (dateStr: string) => {
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const today = new Date();
-    // Normalize today to start of day for accurate comparison
-    today.setHours(0, 0, 0, 0); 
-    return date < today;
-}
-
-// --- Custom Modal Component ---
+// --- Custom Modal (unchanged) ---
 const DeleteConfirmationModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
@@ -35,7 +25,7 @@ const DeleteConfirmationModal: React.FC<{
   if (!isOpen) return null;
 
   return (
-      <div className="fixed inset-0 bg-[#575757a3] backdrop-blur-xs z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-[#575757a3] backdrop-blur-xs z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6 relative">
         <button onClick={onClose} className="absolute top-3 right-3 text-[var(--dark-grey)] hover:text-black">
           <X size={20} />
@@ -44,9 +34,9 @@ const DeleteConfirmationModal: React.FC<{
           <div className="mb-4 inline-flex p-2">
              <TriangleAlert size={80} className="text-[var(--maroon)]" />
           </div>
-          <h3 className="text-xl font-bold text-black mb-2">Delete Confirmation</h3>
+          <h3 className="text-xl font-bold text-black mb-2">Reset Confirmation</h3>
           <p className="text-sm text-[var(--dark-grey)]">
-            This action will permanently delete all data related to the nominee’s submissions and committee evaluations. Do you wish to continue?
+            This action will <strong>permanently delete all data</strong> related to the nominee’s submissions and committee evaluations. Do you wish to continue?
           </p>
         </div>
         <div className="flex justify-center gap-5 mt-6">
@@ -62,180 +52,217 @@ const DeleteConfirmationModal: React.FC<{
   );
 };
 
-// --- Main Page Component ---
+const toDateTimeInput = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+  return localIso;
+};
+
 export default function Page() {
-  // Initialize SAVED STATES (These reflect the state stored in the database)
-  const FUTURE_START = "2025-11-20"; 
-  const FUTURE_END = "2025-11-24";
+  // SAVED states
+  const [nominationStartDate, setNominationStartDate] = useState<string>("");
+  const [nominationEndDate, setNominationEndDate] = useState<string>("");
+  const [scoringStartDate, setScoringStartDate] = useState<string>("");
+  const [scoringEndDate, setScoringEndDate] = useState<string>("");
 
-  const [nominationStartDate, setNominationStartDate] = useState(FUTURE_START); 
-  const [nominationEndDate, setNominationEndDate] = useState(FUTURE_END);
-  const [scoringStartDate, setScoringStartDate] = useState(FUTURE_START);
-  const [scoringEndDate, setScoringEndDate] = useState(FUTURE_END);
-  
-  // Tracks if submissions/scores exist (Set to true/false to simulate statuses)
-  const [hasNominationSubmissions, setHasNominationSubmissions] = useState(true); 
-  const [hasScoringSubmissions, setHasScoringSubmissions] = useState(true); 
-  
-  // DRAFT STATES (What the user is currently typing)
-  const [draftNominationStartDate, setDraftNominationStartDate] = useState(FUTURE_START);
-  const [draftNominationEndDate, setDraftNominationEndDate] = useState(FUTURE_END);
-  const [draftScoringStartDate, setDraftScoringStartDate] = useState(FUTURE_START);
-  const [draftScoringEndDate, setDraftScoringEndDate] = useState(FUTURE_END);
-  
-  // UI State: Alert is now an object matching AlertBanner props
-  const [alert, setAlert] = useState<{ title: string, message: string, variant: 'success' | 'error' | 'warning', key: number } | null>(null);
+  // DRAFT states
+  const [draftNominationStartDate, setDraftNominationStartDate] = useState<string>("");
+  const [draftNominationEndDate, setDraftNominationEndDate] = useState<string>("");
+  const [draftScoringStartDate, setDraftScoringStartDate] = useState<string>("");
+  const [draftScoringEndDate, setDraftScoringEndDate] = useState<string>("");
+
+  const [counts, setCounts] = useState({ nom: 0, review: 0 });
+
+  // UI state
+  const [alert, setAlert] = useState<{ title: string; message: string; variant: 'success'|'error'|'warning'; key: number } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-
-  // ==========================================================
-  // LOGIC IMPLEMENTATION
-  // ==========================================================
-
-  // Determine the overall status for a period based on the rules
-  const getPeriodStatus = (startDate: string, endDate: string, hasSubmissions: boolean): 'UNSCHEDULED' | 'OPEN' | 'PUBLISHED' | 'CLOSED' => {
-    // 1. UNSCHEDULED: No date set (Saved state)
-    if (!startDate || !endDate) {
-      return 'UNSCHEDULED';
-    }
-    
-    // Check if the period is CLOSED (date passed)
-    const isClosed = !checkIfClosed(endDate);
-    if (isClosed) {
-      return 'CLOSED';
-    }
-
-    // 2. PUBLISHED: Date set, Saved, AND Submissions exist
-    if (hasSubmissions) {
-      return 'PUBLISHED';
-    }
-    
-    // 3. OPEN: Date set, Saved, No submissions yet
-    return 'OPEN';
+  const triggerAlert = (title: string, message: string, variant: 'success'|'error'|'warning') => {
+    setAlert({ title, message, variant, key: Math.random() });
   };
 
-  const nominationStatus = getPeriodStatus(nominationStartDate, nominationEndDate, hasNominationSubmissions);
-  const scoringStatus = getPeriodStatus(scoringStartDate, scoringEndDate, hasScoringSubmissions);
-  
-  // INPUT DISABLING LOGIC
-  const isNominationDisabled = nominationStatus === 'PUBLISHED' || nominationStatus === 'CLOSED';
-  const isScoringDisabled = scoringStatus === 'PUBLISHED' || scoringStatus === 'CLOSED';
-  
-  // BUTTON LOGIC
-  const isInvalidInput = !draftNominationStartDate || !draftNominationEndDate || !draftScoringStartDate || !draftScoringEndDate;
-  const hasAnySubmissions = hasNominationSubmissions || hasScoringSubmissions;
-  
-  const canReset = hasAnySubmissions || nominationStatus === 'CLOSED' || scoringStatus === 'CLOSED';
-  
-  // Save is allowed if no submissions AND input is valid
-  const canSave = !hasAnySubmissions && !isInvalidInput; 
-  
-  // Clear is enabled if there are any draft changes made by the user
-  const hasDraftChanges = 
-    draftNominationStartDate !== nominationStartDate || 
+  // --- LOGIC: Compute Status ---
+  const computeStatus = (start: string, end: string, count: number): AdminStatus => {
+    if (!start || !end) return "UNSCHEDULED";
+    
+    const now = new Date();
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    // 1. Past End Date = CLOSED
+    if (now > endDate) return "CLOSED";
+
+    // 2. Future Start Date = PUBLISHED
+    if (now < startDate) return "PUBLISHED";
+
+    // 3. Active Window + Data exists = OPEN (Locked)
+    if (count > 0) return "OPEN";
+
+    // 4. Active Window + No Data = PUBLISHED (Editable)
+    return "PUBLISHED";
+  };
+
+  const fetchAndRefreshData = async () => {
+      try {
+        const data = await getPortalData(); 
+        const settings = data.settings;
+        setCounts({ nom: data.nominationCount, review: data.reviewCount });
+
+        setNominationStartDate(toDateTimeInput(settings?.["nomination_period"]?.start_at));
+        setNominationEndDate(toDateTimeInput(settings?.["nomination_period"]?.end_at));
+        setScoringStartDate(toDateTimeInput(settings?.["scoring_period"]?.start_at));
+        setScoringEndDate(toDateTimeInput(settings?.["scoring_period"]?.end_at));
+
+        if (loading) {
+            setDraftNominationStartDate(toDateTimeInput(settings?.["nomination_period"]?.start_at));
+            setDraftNominationEndDate(toDateTimeInput(settings?.["nomination_period"]?.end_at));
+            setDraftScoringStartDate(toDateTimeInput(settings?.["scoring_period"]?.start_at));
+            setDraftScoringEndDate(toDateTimeInput(settings?.["scoring_period"]?.end_at));
+        }
+      } catch (err) {
+        triggerAlert("Error", "Failed to load portal settings.", "error");
+      }
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchAndRefreshData();
+      setLoading(false);
+    })();
+  }, []);
+
+  // --- Derived Statuses ---
+  const nomStatus = computeStatus(nominationStartDate, nominationEndDate, counts.nom);
+  const scoreStatus = computeStatus(scoringStartDate, scoringEndDate, counts.review);
+
+  // --- 🔥 RESTORED LOCKING LOGIC ---
+  // Locked if OPEN (Active Data) or CLOSED (Finished).
+  const isNominationDisabled = nomStatus === "OPEN" || nomStatus === "CLOSED";
+  const isScoringDisabled = scoreStatus === "OPEN" || scoreStatus === "CLOSED";
+
+  const isInvalidInput =
+    !draftNominationStartDate || !draftNominationEndDate || !draftScoringStartDate || !draftScoringEndDate;
+
+  const hasDraftChanges =
+    draftNominationStartDate !== nominationStartDate ||
     draftNominationEndDate !== nominationEndDate ||
     draftScoringStartDate !== scoringStartDate ||
     draftScoringEndDate !== scoringEndDate;
-  
-  const isLeftButtonEnabled = canReset || hasDraftChanges;
-  const leftButtonText = canReset ? "Reset" : "Clear";
 
-  // Helper to trigger alert banner
-  const triggerAlert = (title: string, message: string, variant: 'success' | 'error' | 'warning') => {
-    // Use Math.random() as a key to force the AlertBanner component to re-render
-    setAlert({ title, message, variant, key: Math.random() });
-  }
+  const hasData = counts.nom > 0 || counts.review > 0;
+  const isLeftButtonEnabled = nomStatus !== "UNSCHEDULED" || scoreStatus !== "UNSCHEDULED" || hasData;
+  const leftButtonText = hasData ? "Reset" : "Clear";
 
+  const canSave = !isInvalidInput && hasDraftChanges;
 
   // --- HANDLERS ---
-  
-  const handleClear = () => {
-    // Reset SAVED states
-    setNominationStartDate("");
-    setNominationEndDate("");
-    setScoringStartDate("");
-    setScoringEndDate("");
-    // Reset DRAFT states
-    setDraftNominationStartDate("");
-    setDraftNominationEndDate("");
-    setDraftScoringStartDate("");
-    setDraftScoringEndDate("");
-    // Reset submissions flag
-    setHasNominationSubmissions(false);
-    setHasScoringSubmissions(false);
-    
-    triggerAlert('Success', 'All dates cleared successfully.', 'success');
-  };
-  
-  const handleSaveAllSettings = () => {
-    if (!canSave) {
-        // Should only hit if button is forced enabled, but good for safety
-        triggerAlert('Error', 'Cannot save settings with current submissions status.', 'error');
-        return;
-    }
-    
-    // VALIDATION 1: Empty Input Check (already covered by isInvalidInput but provide specific message)
-    if (isInvalidInput) {
-      triggerAlert('Error', 'Invalid date input. Please ensure all start and end dates are entered correctly.', 'error');
-      return;
-    }
-    
-    // VALIDATION 2: Past Date Check
-    if (isDateInPast(draftNominationStartDate) || isDateInPast(draftNominationEndDate) ||
-        isDateInPast(draftScoringStartDate) || isDateInPast(draftScoringEndDate)) {
-      triggerAlert('Error', 'Invalid date input. Dates cannot be set in the past.', 'error');
-      return;
-    }
-    
-    // VALIDATION 3: Start Date must be before End Date
-    if (new Date(draftNominationStartDate) >= new Date(draftNominationEndDate) ||
-        new Date(draftScoringStartDate) >= new Date(draftScoringEndDate)) {
-      triggerAlert('Error', 'Invalid date range. Start date must be before end date.', 'error');
-      return;
-    }
-
-    // SUCCESS PATH
-    setNominationStartDate(draftNominationStartDate);
-    setNominationEndDate(draftNominationEndDate);
-    setScoringStartDate(draftScoringStartDate);
-    setScoringEndDate(draftScoringEndDate);
-    
-    triggerAlert('Success', 'Portal Settings was successfully saved', 'success');
-  };
-  
-  const handleResetClick = () => {
-    if (!isLeftButtonEnabled) return;
-
-    if (leftButtonText === "Reset") {
-        if (nominationStatus === 'PUBLISHED' || scoringStatus === 'PUBLISHED') {
-            triggerAlert('Error', 'Cannot reset settings because a submission already exists.', 'error');
-            return;
-        }
-        
-        // If not PUBLISHED (only CLOSED or submissions exist in a non-published state), show modal
-        setIsModalOpen(true);
-        
-    } else if (leftButtonText === "Clear") {
-        // If it's a non-destructive clear, just clear the drafts
-        handleClear();
-    }
-  };
-  
-  const handleConfirmDelete = () => {
-    setIsModalOpen(false);
-    handleClear(); 
-    triggerAlert('Warning', 'All submission data has been permanently deleted, and periods have been reset.', 'warning');
-  };
-  
-  // Input Change Handler Logic
-  const handleDraftChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, currentStatus: string) => {
-    if (currentStatus === 'PUBLISHED' || currentStatus === 'CLOSED') {
-      triggerAlert('Error', 'Cannot edit dates while submissions exist or period is closed.', 'error');
+  const handleDraftChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, currentDisabled: boolean) => {
+    // 🔥 RESTORED GUARD CLAUSE
+    if (currentDisabled) {
+      triggerAlert("Error", "Cannot edit dates while period is active with data or closed. Please reset first.", "error");
       return;
     }
     setter(value);
   };
 
+  const handleSaveAllSettings = async () => {
+    if (!canSave) {
+      triggerAlert("Error", "Cannot save settings.", "error");
+      return;
+    }
+
+    // --- VALIDATION LOGIC ---
+    const nomStart = new Date(draftNominationStartDate);
+    const nomEnd = new Date(draftNominationEndDate);
+    const scoreStart = new Date(draftScoringStartDate);
+    const scoreEnd = new Date(draftScoringEndDate);
+
+    // 1. Basic Start < End
+    if (nomStart >= nomEnd) {
+        triggerAlert("Error", "Nomination Start must be before End date.", "error");
+        return;
+    }
+    if (scoreStart >= scoreEnd) {
+        triggerAlert("Error", "Scoring Start must be before End date.", "error");
+        return;
+    }
+
+    // 2. Committee cannot start before Nomination Starts
+    if (scoreStart < nomStart) {
+        triggerAlert("Error", "Committee Scoring cannot start before Nomination Period begins.", "error");
+        return;
+    }
+
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append("nom_start", draftNominationStartDate);
+      form.append("nom_end", draftNominationEndDate);
+      form.append("score_start", draftScoringStartDate);
+      form.append("score_end", draftScoringEndDate);
+
+      const res = await saveAllSettings(form);
+      if (res?.success) {
+        await fetchAndRefreshData();
+        triggerAlert("Success", "Portal Settings saved successfully", "success");
+      } else {
+        triggerAlert("Error", res?.message || "Failed to save settings.", "error");
+      }
+    } catch (err) {
+      triggerAlert("Error", "Failed to save settings.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetClick = () => {
+    if (!isLeftButtonEnabled) return;
+    if (leftButtonText === "Reset") {
+      setIsModalOpen(true);
+    } else {
+      handleConfirmDelete("CLEAR_ONLY");
+    }
+  };
+
+  const handleConfirmDelete = async (mode: "DESTRUCTIVE" | "CLEAR_ONLY" = "DESTRUCTIVE") => {
+    setIsModalOpen(false);
+    setSaving(true);
+    try {
+      await resetPortal("nomination_period");
+      await resetPortal("scoring_period");
+
+      await fetchAndRefreshData();
+      
+      setDraftNominationStartDate("");
+      setDraftNominationEndDate("");
+      setDraftScoringStartDate("");
+      setDraftScoringEndDate("");
+
+      triggerAlert(
+          mode === "DESTRUCTIVE" ? "Warning" : "Success", 
+          mode === "DESTRUCTIVE" ? "All submission data deleted and timeline reset." : "Timeline cleared.", 
+          mode === "DESTRUCTIVE" ? "warning" : "success"
+      );
+    } catch (err) {
+      console.error("Reset error:", err);
+      triggerAlert("Error", "Failed to reset portal.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-3">
+        <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[var(--dark-grey)] text-sm font-medium">Loading settings...</p>
+      </div>
+    );
+  }
 
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
@@ -253,10 +280,9 @@ export default function Page() {
       <DeleteConfirmationModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => handleConfirmDelete("DESTRUCTIVE")}
       />
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">
@@ -281,7 +307,6 @@ export default function Page() {
           Nomination Period Control
         </h2>
 
-        {/* Status Bar */}
         <div className="w-full rounded-sm min-h-[10vh] py-4 px-4 mb-6 relative pr-24 bg-[var(--settings-grey)]">
           <div className="mb-2">
             <h3 className="text-md font-semibold text-black">
@@ -291,35 +316,36 @@ export default function Page() {
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             <PortalStatusBadge
               variant="period"
-              status={nominationStatus}
+              status={nomStatus}
             />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Allow employees to submit nominations
+            {counts.nom > 0 && <span className="ml-2 font-mono text-xs bg-gray-200 px-2 py-0.5 rounded">({counts.nom} active)</span>}
           </p>
         </div>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              id="nomination_start_date"
-              label="Start Date"
-              placeholder="Select a Date"
+              id="nomination_start_datetime"
+              label="Start Date & Time"
+              placeholder="Select start date & time"
               value={draftNominationStartDate}
               disabled={isNominationDisabled}
-              onChange={(v) => handleDraftChange(setDraftNominationStartDate, v, nominationStatus)}
+              onChange={(v) => handleDraftChange(setDraftNominationStartDate, v, isNominationDisabled)}
               width="w-full"
-              type="date"
+              type="datetime-local"
             />
             <Input
-              id="nomination_end_date"
-              label="End Date"
-              placeholder="Select a Date"
+              id="nomination_end_datetime"
+              label="End Date & Time"
+              placeholder="Select end date & time"
               value={draftNominationEndDate}
               disabled={isNominationDisabled}
-              onChange={(v) => handleDraftChange(setDraftNominationEndDate, v, nominationStatus)}
+              onChange={(v) => handleDraftChange(setDraftNominationEndDate, v, isNominationDisabled)}
               width="w-full"
-              type="date"
+              type="datetime-local"
             />
           </div>
         </form>
@@ -335,7 +361,6 @@ export default function Page() {
           Committee Scoring Period
         </h2>
 
-        {/* Status Bar */}
         <div className="w-full rounded-sm min-h-[10vh] py-4 px-4 mb-6 relative pr-24 bg-[var(--settings-grey)]">
           <div className="mb-2">
             <h3 className="text-md font-semibold text-black">
@@ -345,44 +370,44 @@ export default function Page() {
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             <PortalStatusBadge
               variant="period"
-              status={scoringStatus}
+              status={scoreStatus}
             />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Committee members can score nominations
+            {counts.review > 0 && <span className="ml-2 font-mono text-xs bg-gray-200 px-2 py-0.5 rounded">({counts.review} evaluations)</span>}
           </p>
         </div>
 
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              id="scoring_start_date"
-              label="Start Date"
-              placeholder="Select a Date"
-              value={draftScoringStartDate}
-              disabled={isScoringDisabled}
-              onChange={(v) => handleDraftChange(setDraftScoringStartDate, v, scoringStatus)}
-              width="w-full"
-              type="date"
-            />
-            <Input
-              id="scoring_end_date"
-              label="End Date"
-              placeholder="Select a Date"
-              value={draftScoringEndDate}
-              disabled={isScoringDisabled}
-              onChange={(v) => handleDraftChange(setDraftScoringEndDate, v, scoringStatus)}
-              width="w-full"
-              type="date"
-            />
+            id="scoring_start_datetime"
+            label="Start Date & Time"
+            placeholder="Select start date & time"
+            value={draftScoringStartDate}
+            disabled={isScoringDisabled}
+            onChange={(v) => handleDraftChange(setDraftScoringStartDate, v, isScoringDisabled)}
+            width="w-full"
+            type="datetime-local"
+          />
+          <Input
+            id="scoring_end_datetime"
+            label="End Date & Time"
+            placeholder="Select end date & time"
+            value={draftScoringEndDate}
+            disabled={isScoringDisabled}
+            onChange={(v) => handleDraftChange(setDraftScoringEndDate, v, isScoringDisabled)}
+            width="w-full"
+            type="datetime-local"
+          />
           </div>
         </form>
       </div>
 
-      <div className="w-full">
+      <div className="w-full max-w-6xl">
         <div className="flex justify-end gap-3 mt-10 mb-2">
           
-          {/* LEFT BUTTON: Clear / Reset */}
           <Button 
             size="sm" 
             variant={
@@ -395,14 +420,13 @@ export default function Page() {
             <div className="px-8 py-2">{leftButtonText}</div>
           </Button>
 
-          {/* RIGHT BUTTON: Save All Settings */}
           <Button 
             size="sm" 
             variant={canSave ? "reset" : "disabled"}
             onClick={handleSaveAllSettings}
             disabled={!canSave}
           >
-            <div className="px-4 py-2">Save All Settings</div>
+            <div className="px-4 py-2">{saving ? "Saving..." : "Save All Settings"}</div>
           </Button>
         </div>
       </div>
