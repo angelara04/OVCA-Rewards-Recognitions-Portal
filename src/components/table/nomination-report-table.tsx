@@ -187,8 +187,8 @@ export default function NominationReportTable<T>({
         profiles = data || [];
       }
 
-      // Summary rows
-      const summaryRows: [string, number, string, string][] = [];
+      // Summary rows: [Committee, Total Score, Status (Qualified/Not Qualified), Comment, Date]
+      const summaryRows: [string, number, string, string, string][] = [];
 
       for (const [index, review] of reviews.entries()) {
         if (index > 0) yPos += 8;
@@ -241,11 +241,26 @@ export default function NominationReportTable<T>({
         pdf.text(`Comments: ${review.comments ?? "-"}`, 10, yPos);
         yPos += 10;
 
+        const reviewDateRaw = review.created_at || review.updated_at || "";
+        let reviewDate = "-";
+        try {
+          const d = new Date(reviewDateRaw);
+          reviewDate = isNaN(d.getTime())
+            ? String(reviewDateRaw || "-")
+            : d.toLocaleDateString("en-PH");
+        } catch {
+          reviewDate = String(reviewDateRaw || "-");
+        }
+
+        const qualificationStatus =
+          totalScore >= 70 ? "Qualified" : "Not Qualified";
+
         summaryRows.push([
           reviewerDisplayName,
           totalScore,
-          review.status || "-",
+          qualificationStatus,
           review.comments || "-",
+          reviewDate,
         ]);
       }
 
@@ -262,14 +277,14 @@ export default function NominationReportTable<T>({
 
         autoTable(pdf, {
           startY: yPos,
-          head: [["Committee", "Total Score", "Status", "Comments"]],
+          head: [["Committee", "Total Score", "Status", "Comment", "Date"]],
           body: summaryRows,
           styles: {
             fontSize: 11,
             overflow: "linebreak",
           },
           columnStyles: {
-            3: { cellWidth: 80 }, // wrap Comments
+            3: { cellWidth: 80 }, // wrap Comment
           },
           headStyles: { fillColor: [0, 123, 255], textColor: 255 }, // blue header
           theme: "grid",
