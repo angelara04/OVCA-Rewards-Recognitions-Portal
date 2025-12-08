@@ -7,23 +7,22 @@ import Input from "@/components/input";
 import PortalStatusBadge from "@/components/portal-status-badge";
 import AlertBanner from "@/components/alertBanner";
 import {
-  getPortalSettings,
+  getPortalData,
   saveAllSettings,
-  getPeriodStatus,
-  clearPeriod,
-  type PeriodStatus,
+  resetPortal,
   type PeriodSetting,
 } from "@/app/admin/settings/actions";
 
-// --- Custom Modal Component (unchanged) ---
+// --- Types ---
+type AdminStatus = "UNSCHEDULED" | "PUBLISHED" | "OPEN" | "CLOSED";
+
+// --- Custom Modal (unchanged) ---
 const DeleteConfirmationModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
 }> = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) return null;
-
-
 
   return (
     <div className="fixed inset-0 bg-[#575757a3] backdrop-blur-xs z-50 flex items-center justify-center">
@@ -35,9 +34,9 @@ const DeleteConfirmationModal: React.FC<{
           <div className="mb-4 inline-flex p-2">
              <TriangleAlert size={80} className="text-[var(--maroon)]" />
           </div>
-          <h3 className="text-xl font-bold text-black mb-2">Delete Confirmation</h3>
+          <h3 className="text-xl font-bold text-black mb-2">Reset Confirmation</h3>
           <p className="text-sm text-[var(--dark-grey)]">
-            This action will permanently delete all data related to the nominee’s submissions and committee evaluations. Do you wish to continue?
+            This action will <strong>permanently delete all data</strong> related to the nominee’s submissions and committee evaluations. Do you wish to continue?
           </p>
         </div>
         <div className="flex justify-center gap-5 mt-6">
@@ -53,45 +52,27 @@ const DeleteConfirmationModal: React.FC<{
   );
 };
 
-// Converts ISO to YYYY-MM-DDTHH:MM (for datetime-local input)
 const toDateTimeInput = (iso?: string | null) => {
   if (!iso) return "";
   const d = new Date(iso);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
-};
-
-// Convert datetime-local input back to ISO
-const toISOFromDateTimeInput = (val: string) => val ? new Date(val).toISOString() : "";
-
-
-// Helper: convert date input value (YYYY-MM-DD) to ISO string (server expects ISO)
-const toISOFromDateInput = (dateStr: string) => {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  return d.toISOString();
+  const localIso = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+  return localIso;
 };
 
 export default function Page() {
-  // SAVED states (from DB)
+  // SAVED states
   const [nominationStartDate, setNominationStartDate] = useState<string>("");
   const [nominationEndDate, setNominationEndDate] = useState<string>("");
   const [scoringStartDate, setScoringStartDate] = useState<string>("");
   const [scoringEndDate, setScoringEndDate] = useState<string>("");
 
-  // DRAFT states (what user edits)
+  // DRAFT states
   const [draftNominationStartDate, setDraftNominationStartDate] = useState<string>("");
   const [draftNominationEndDate, setDraftNominationEndDate] = useState<string>("");
   const [draftScoringStartDate, setDraftScoringStartDate] = useState<string>("");
   const [draftScoringEndDate, setDraftScoringEndDate] = useState<string>("");
 
-  // Flags we still keep (you can wire these later to real counts if you want)
-  const [hasNominationSubmissions, setHasNominationSubmissions] = useState<boolean>(false);
-  const [hasScoringSubmissions, setHasScoringSubmissions] = useState<boolean>(false);
+  const [counts, setCounts] = useState({ nom: 0, review: 0 });
 
   // UI state
   const [alert, setAlert] = useState<{ title: string; message: string; variant: 'success'|'error'|'warning'; key: number } | null>(null);
@@ -99,72 +80,72 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Server-derived statuses (PeriodStatus from actions: "OPEN" | "CLOSED" | "UNSCHEDULED")
-  const [nomServerStatus, setNomServerStatus] = useState<PeriodStatus | null>(null);
-  const [scoreServerStatus, setScoreServerStatus] = useState<PeriodStatus | null>(null);
-
-  // Helper to display alerts
   const triggerAlert = (title: string, message: string, variant: 'success'|'error'|'warning') => {
     setAlert({ title, message, variant, key: Math.random() });
   };
-const computeStatus = (start: string, end: string) => {
-  if (!start || !end) return "UNSCHEDULED";
-  const now = new Date();
-  const s = new Date(start);
-  const e = new Date(end);
-  if (now < s) return "UNSCHEDULED";
-  if (now >= s && now <= e) return "OPEN";
-  return "CLOSED"; // or "CLOSED" depending on logic
-};
-  // Load settings on mount
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
+
+  // --- LOGIC: Compute Status ---
+  const computeStatus = (start: string, end: string, count: number): AdminStatus => {
+    if (!start || !end) return "UNSCHEDULED";
+    
+    const now = new Date();
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+
+    // 1. Past End Date = CLOSED
+    if (now > endDate) return "CLOSED";
+
+    // 2. Future Start Date = PUBLISHED
+    if (now < startDate) return "PUBLISHED";
+
+    // 3. Active Window + Data exists = OPEN (Locked)
+    if (count > 0) return "OPEN";
+
+    // 4. Active Window + No Data = PUBLISHED (Editable)
+    return "PUBLISHED";
+  };
+
+  const fetchAndRefreshData = async () => {
       try {
-        const settings: Record<string, PeriodSetting> = await getPortalSettings();
+        const data = await getPortalData(); 
+        const settings = data.settings;
+        setCounts({ nom: data.nominationCount, review: data.reviewCount });
+
         setNominationStartDate(toDateTimeInput(settings?.["nomination_period"]?.start_at));
         setNominationEndDate(toDateTimeInput(settings?.["nomination_period"]?.end_at));
         setScoringStartDate(toDateTimeInput(settings?.["scoring_period"]?.start_at));
         setScoringEndDate(toDateTimeInput(settings?.["scoring_period"]?.end_at));
 
-        setDraftNominationStartDate(toDateTimeInput(settings?.["nomination_period"]?.start_at));
-        setDraftNominationEndDate(toDateTimeInput(settings?.["nomination_period"]?.end_at));
-        setDraftScoringStartDate(toDateTimeInput(settings?.["scoring_period"]?.start_at));
-        setDraftScoringEndDate(toDateTimeInput(settings?.["scoring_period"]?.end_at));
-
-        // fetch statuses
-        const nStatus = await getPeriodStatus("nomination_period");
-        const sStatus = await getPeriodStatus("scoring_period");
-        setNomServerStatus(nStatus);
-        setScoreServerStatus(sStatus);
-
-        // NOTE: we don't know submission counts here (unless you add an endpoint). Keep flags false by default.
+        if (loading) {
+            setDraftNominationStartDate(toDateTimeInput(settings?.["nomination_period"]?.start_at));
+            setDraftNominationEndDate(toDateTimeInput(settings?.["nomination_period"]?.end_at));
+            setDraftScoringStartDate(toDateTimeInput(settings?.["scoring_period"]?.start_at));
+            setDraftScoringEndDate(toDateTimeInput(settings?.["scoring_period"]?.end_at));
+        }
       } catch (err) {
-        console.error("Failed to load portal settings:", err);
         triggerAlert("Error", "Failed to load portal settings.", "error");
-      } finally {
-        setLoading(false);
       }
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await fetchAndRefreshData();
+      setLoading(false);
     })();
   }, []);
 
-  // Derived logic (keeps your original UI logic intact, but wired to server statuses)
-  const isNominationDisabled = nomServerStatus === "OPEN" || nomServerStatus === "CLOSED";
-  const isScoringDisabled = scoreServerStatus === "OPEN" || scoreServerStatus === "CLOSED";
+  // --- Derived Statuses ---
+  const nomStatus = computeStatus(nominationStartDate, nominationEndDate, counts.nom);
+  const scoreStatus = computeStatus(scoringStartDate, scoringEndDate, counts.review);
+
+  // --- 🔥 RESTORED LOCKING LOGIC ---
+  // Locked if OPEN (Active Data) or CLOSED (Finished).
+  const isNominationDisabled = nomStatus === "OPEN" || nomStatus === "CLOSED";
+  const isScoringDisabled = scoreStatus === "OPEN" || scoreStatus === "CLOSED";
 
   const isInvalidInput =
     !draftNominationStartDate || !draftNominationEndDate || !draftScoringStartDate || !draftScoringEndDate;
-
-  const hasAnySubmissions = hasNominationSubmissions || hasScoringSubmissions;
-
-  const canReset =
-    hasAnySubmissions ||
-    nomServerStatus === "OPEN" ||
-    nomServerStatus === "CLOSED" ||
-    scoreServerStatus === "OPEN" ||
-    scoreServerStatus === "CLOSED";
-
-  const canSave = !hasAnySubmissions && !isInvalidInput;
 
   const hasDraftChanges =
     draftNominationStartDate !== nominationStartDate ||
@@ -172,52 +153,53 @@ const computeStatus = (start: string, end: string) => {
     draftScoringStartDate !== scoringStartDate ||
     draftScoringEndDate !== scoringEndDate;
 
-  const isLeftButtonEnabled = canReset || hasDraftChanges;
-  const leftButtonText = canReset ? "Reset" : "Clear";
+  const hasData = counts.nom > 0 || counts.review > 0;
+  const isLeftButtonEnabled = nomStatus !== "UNSCHEDULED" || scoreStatus !== "UNSCHEDULED" || hasData;
+  const leftButtonText = hasData ? "Reset" : "Clear";
 
-  // Handlers
+  const canSave = !isInvalidInput && hasDraftChanges;
+
+  // --- HANDLERS ---
   const handleDraftChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, currentDisabled: boolean) => {
+    // 🔥 RESTORED GUARD CLAUSE
     if (currentDisabled) {
-      triggerAlert("Error", "Cannot edit dates while period is active or recently closed.", "error");
+      triggerAlert("Error", "Cannot edit dates while period is active with data or closed. Please reset first.", "error");
       return;
     }
     setter(value);
   };
 
-  const fetchAndRefreshStatuses = async () => {
-    const nStatus = await getPeriodStatus("nomination_period");
-    const sStatus = await getPeriodStatus("scoring_period");
-    setNomServerStatus(nStatus);
-    setScoreServerStatus(sStatus);
-  };
-
   const handleSaveAllSettings = async () => {
     if (!canSave) {
-      triggerAlert("Error", "Cannot save settings with current submissions status or invalid input.", "error");
+      triggerAlert("Error", "Cannot save settings.", "error");
       return;
     }
 
-    // Basic client validations (keeps your existing rules)
-    if (isInvalidInput) {
-      triggerAlert("Error", "Invalid date input. Please ensure all start and end dates are entered correctly.", "error");
-      return;
+    // --- VALIDATION LOGIC ---
+    const nomStart = new Date(draftNominationStartDate);
+    const nomEnd = new Date(draftNominationEndDate);
+    const scoreStart = new Date(draftScoringStartDate);
+    const scoreEnd = new Date(draftScoringEndDate);
+
+    // 1. Basic Start < End
+    if (nomStart >= nomEnd) {
+        triggerAlert("Error", "Nomination Start must be before End date.", "error");
+        return;
     }
-    // Past date check
-    const isPast = (d: string) => d && new Date(d) < new Date(new Date().setHours(0,0,0,0));
-    if (isPast(draftNominationStartDate) || isPast(draftNominationEndDate) || isPast(draftScoringStartDate) || isPast(draftScoringEndDate)) {
-      triggerAlert("Error", "Invalid date input. Dates cannot be set in the past.", "error");
-      return;
+    if (scoreStart >= scoreEnd) {
+        triggerAlert("Error", "Scoring Start must be before End date.", "error");
+        return;
     }
-    // Start < End
-    if (new Date(draftNominationStartDate) >= new Date(draftNominationEndDate) || new Date(draftScoringStartDate) >= new Date(draftScoringEndDate)) {
-      triggerAlert("Error", "Invalid date range. Start date must be before end date.", "error");
-      return;
+
+    // 2. Committee cannot start before Nomination Starts
+    if (scoreStart < nomStart) {
+        triggerAlert("Error", "Committee Scoring cannot start before Nomination Period begins.", "error");
+        return;
     }
 
     setSaving(true);
     try {
       const form = new FormData();
-      // pass the raw date inputs — your server action will convert with new Date(val).toISOString()
       form.append("nom_start", draftNominationStartDate);
       form.append("nom_end", draftNominationEndDate);
       form.append("score_start", draftScoringStartDate);
@@ -225,47 +207,13 @@ const computeStatus = (start: string, end: string) => {
 
       const res = await saveAllSettings(form);
       if (res?.success) {
-        // update saved states to drafts (persist UI)
-        setNominationStartDate(draftNominationStartDate);
-        setNominationEndDate(draftNominationEndDate);
-        setScoringStartDate(draftScoringStartDate);
-        setScoringEndDate(draftScoringEndDate);
-
-        // refresh statuses from server
-        await fetchAndRefreshStatuses();
-
-        triggerAlert("Success", "Portal Settings was successfully saved", "success");
+        await fetchAndRefreshData();
+        triggerAlert("Success", "Portal Settings saved successfully", "success");
       } else {
         triggerAlert("Error", res?.message || "Failed to save settings.", "error");
       }
     } catch (err) {
-      console.error("Save error:", err);
       triggerAlert("Error", "Failed to save settings.", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleClear = async () => {
-    // Non-destructive clear: remove saved values locally and call server to clear as well
-    setSaving(true);
-    try {
-      await clearPeriod("nomination_period");
-      await clearPeriod("scoring_period");
-      setNominationStartDate("");
-      setNominationEndDate("");
-      setScoringStartDate("");
-      setScoringEndDate("");
-      setDraftNominationStartDate("");
-      setDraftNominationEndDate("");
-      setDraftScoringStartDate("");
-      setDraftScoringEndDate("");
-      // update statuses
-      await fetchAndRefreshStatuses();
-      triggerAlert("Success", "All dates cleared successfully.", "success");
-    } catch (err) {
-      console.error("Clear error:", err);
-      triggerAlert("Error", "Failed to clear periods.", "error");
     } finally {
       setSaving(false);
     }
@@ -273,46 +221,35 @@ const computeStatus = (start: string, end: string) => {
 
   const handleResetClick = () => {
     if (!isLeftButtonEnabled) return;
-
     if (leftButtonText === "Reset") {
-      // If we treat a reset as destructive when there are submissions, show modal
-      if (hasAnySubmissions) {
-        setIsModalOpen(true);
-        return;
-      }
-
-      // If there are no submissions, proceed to clear server periods after confirmation modal
       setIsModalOpen(true);
     } else {
-      // Clear drafts locally and on server (non-destructive clear)
-      handleClear();
+      handleConfirmDelete("CLEAR_ONLY");
     }
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (mode: "DESTRUCTIVE" | "CLEAR_ONLY" = "DESTRUCTIVE") => {
     setIsModalOpen(false);
-    // Delete action: clear both periods server-side (and simulate deletion of submissions)
     setSaving(true);
     try {
-      await clearPeriod("nomination_period");
-      await clearPeriod("scoring_period");
-      setNominationStartDate("");
-      setNominationEndDate("");
-      setScoringStartDate("");
-      setScoringEndDate("");
+      await resetPortal("nomination_period");
+      await resetPortal("scoring_period");
+
+      await fetchAndRefreshData();
+      
       setDraftNominationStartDate("");
       setDraftNominationEndDate("");
       setDraftScoringStartDate("");
       setDraftScoringEndDate("");
-      // Optionally reset submission flags (you might want to only do this when real deletion is performed)
-      setHasNominationSubmissions(false);
-      setHasScoringSubmissions(false);
 
-      await fetchAndRefreshStatuses();
-      triggerAlert("Warning", "All submission data has been permanently deleted, and periods have been reset.", "warning");
+      triggerAlert(
+          mode === "DESTRUCTIVE" ? "Warning" : "Success", 
+          mode === "DESTRUCTIVE" ? "All submission data deleted and timeline reset." : "Timeline cleared.", 
+          mode === "DESTRUCTIVE" ? "warning" : "success"
+      );
     } catch (err) {
-      console.error("Confirm delete error:", err);
-      triggerAlert("Error", "Failed to perform reset.", "error");
+      console.error("Reset error:", err);
+      triggerAlert("Error", "Failed to reset portal.", "error");
     } finally {
       setSaving(false);
     }
@@ -343,10 +280,9 @@ const computeStatus = (start: string, end: string) => {
       <DeleteConfirmationModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onConfirm={handleConfirmDelete}
+        onConfirm={() => handleConfirmDelete("DESTRUCTIVE")}
       />
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-10 w-full max-w-6xl">
         <div>
           <h1 className="text-[28px] font-bold text-[var(--black)]">
@@ -371,7 +307,6 @@ const computeStatus = (start: string, end: string) => {
           Nomination Period Control
         </h2>
 
-        {/* Status Bar */}
         <div className="w-full rounded-sm min-h-[10vh] py-4 px-4 mb-6 relative pr-24 bg-[var(--settings-grey)]">
           <div className="mb-2">
             <h3 className="text-md font-semibold text-black">
@@ -381,11 +316,12 @@ const computeStatus = (start: string, end: string) => {
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             <PortalStatusBadge
               variant="period"
-              status={computeStatus(nominationStartDate, nominationEndDate)}
+              status={nomStatus}
             />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Allow employees to submit nominations
+            {counts.nom > 0 && <span className="ml-2 font-mono text-xs bg-gray-200 px-2 py-0.5 rounded">({counts.nom} active)</span>}
           </p>
         </div>
 
@@ -411,7 +347,6 @@ const computeStatus = (start: string, end: string) => {
               width="w-full"
               type="datetime-local"
             />
-
           </div>
         </form>
       </div>
@@ -426,7 +361,6 @@ const computeStatus = (start: string, end: string) => {
           Committee Scoring Period
         </h2>
 
-        {/* Status Bar */}
         <div className="w-full rounded-sm min-h-[10vh] py-4 px-4 mb-6 relative pr-24 bg-[var(--settings-grey)]">
           <div className="mb-2">
             <h3 className="text-md font-semibold text-black">
@@ -436,11 +370,12 @@ const computeStatus = (start: string, end: string) => {
           <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
             <PortalStatusBadge
               variant="period"
-              status={computeStatus(scoringStartDate, scoringEndDate)}
+              status={scoreStatus}
             />
           </div>
           <p className="text-sm text-[var(--dark-grey)]">
             Committee members can score nominations
+            {counts.review > 0 && <span className="ml-2 font-mono text-xs bg-gray-200 px-2 py-0.5 rounded">({counts.review} evaluations)</span>}
           </p>
         </div>
 
@@ -466,15 +401,13 @@ const computeStatus = (start: string, end: string) => {
             width="w-full"
             type="datetime-local"
           />
-
           </div>
         </form>
       </div>
 
-      <div className="w-full">
+      <div className="w-full max-w-6xl">
         <div className="flex justify-end gap-3 mt-10 mb-2">
           
-          {/* LEFT BUTTON: Clear / Reset */}
           <Button 
             size="sm" 
             variant={
@@ -487,7 +420,6 @@ const computeStatus = (start: string, end: string) => {
             <div className="px-8 py-2">{leftButtonText}</div>
           </Button>
 
-          {/* RIGHT BUTTON: Save All Settings */}
           <Button 
             size="sm" 
             variant={canSave ? "reset" : "disabled"}
