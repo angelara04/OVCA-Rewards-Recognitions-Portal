@@ -447,6 +447,26 @@ export default function Page() {
     );
   }
 
+  // While the nomination report is being fetched, show a full-page loading overlay
+  if (loading) {
+    return (
+      <Section
+        width="w-full"
+        height="min-h-screen"
+        alignment="items-center p-10"
+      >
+        <div className="relative w-full min-h-screen">
+          <div className="absolute inset-0 flex flex-col items-center justify-center h-full gap-3">
+            <div className="w-10 h-10 border-4 border-[var(--maroon)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--dark-grey)] text-sm font-medium">
+              Loading...
+            </p>
+          </div>
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-center p-10">
       {/* Header */}
