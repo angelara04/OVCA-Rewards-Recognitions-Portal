@@ -4,40 +4,36 @@ import { NextResponse, type NextRequest } from 'next/server'
 // RBAC DEFINITION
 const PUBLIC_ROUTES = [
     '/login',
-    '/auth', // Match /auth and /auth/*
+    '/auth', 
     '/error',
     '/unauthorized', 
 ]
 
 const ROLE_PERMISSIONS = {
-    // Authenticated users (including no-role) need access to these to complete the registration flow.
+    // Authenticated users (including no-role) need access to these
     AUTHENTICATED_ALL: [
-        '/', // allow initial landing to prevent login loops (can't be seen by users)
+        '/', 
         '/login',
         '/registry',
-        '/pending',
-        '/admin',
-        '/portal-closed'
+        '/pending',      
+        '/admin/portal-closed'  // comment out during beta
     ],
     nominator: [
         '/nominators',
     ],
     committee: [
         '/committee',
-        '/nominators',
+        '/admin',       // comment out during beta
     ],
     hr: [
         '/hr',
+        '/admin',      // comment out during beta
     ]
 }
 
-// Checks if the pathname is one of the allowed routes for a given set of permissions.
 function isPathAllowed(pathname: string, allowedRoutes: string[]): boolean {
     return allowedRoutes.some(route => {
-        // Strict check: if the route is root '/', exact match required
-        if (route === '/') {
-            return pathname === '/';
-        }
+        if (route === '/') return pathname === '/';
         return pathname.startsWith(route);
     });
 }
@@ -68,22 +64,21 @@ export async function middleware(request: NextRequest) {
         }
     )
 
+    const path = request.nextUrl.pathname
+
+    // Allow Next.js data fetching (_next/data) and static files to pass through RBAC
+    if (path.startsWith('/_next') || path.startsWith('/api')) {
+        return supabaseResponse;
+    }
+
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
-    const path = request.nextUrl.pathname
     let userRole: string | null = null;
-
-    // DEBUGGING LOGS
-    // if (path.startsWith('/nominators') || path.startsWith('/committee') || path.startsWith('/hr') || path === '/' || path.startsWith('/registry') || path.startsWith('/unauthorized')) {
-    //     console.log(`[Middleware] Request: ${path}`)
-    //     console.log(`[Middleware] Auth User: ${user?.id || 'Unauthenticated'}`)
-    // }
 
     // If no user, only allow PUBLIC_ROUTES
     if (!user && !isPathAllowed(path, PUBLIC_ROUTES)) {
-        // console.log(`[Middleware] ⛔ UNAUTHENTICATED ACCESS DENIED. Redirecting to /login.`)
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
@@ -104,46 +99,34 @@ export async function middleware(request: NextRequest) {
             userRole = 'no-role'; 
         }
 
-        // console.log(`[Middleware] Fetched Role: ${userRole}`);
-
-        // Check if the path is a public safety route (like /unauthorized)
+        // Public Access Check
         if (isPathAllowed(path, PUBLIC_ROUTES)) {
-             // console.log(`[Middleware] ✅ PUBLIC ACCESS GRANTED for authenticated user.`);
              return supabaseResponse;
         }
 
         // TRAFFIC CONTROLLER FOR ROOT PATH '/'
         if (path === '/') {
             const url = request.nextUrl.clone();
+            if (userRole === 'nominator') url.pathname = '/nominators/dashboard'; 
+            else if (userRole === 'committee') url.pathname = '/committee/review-dashboard'; 
+            else if (userRole === 'hr') url.pathname = '/hr/hr-dashboard'; 
+            else url.pathname = '/login';
             
-            if (userRole === 'nominator') {
-                url.pathname = '/nominators/dashboard'; 
-            } else if (userRole === 'committee') {
-                url.pathname = '/committee/review-dashboard'; 
-            } else if (userRole === 'hr') {
-                url.pathname = '/hr/hr-dashboard'; 
-            } else {
-                // No-role users or unknowns go to login
-                url.pathname = '/login';
-            }
-            
-            // console.log(`[Middleware] 🔀 ROOT REDIRECT for ${userRole} to ${url.pathname}`);
             return NextResponse.redirect(url);
         }
 
         // NO-ROLE USERS (Strict Lockdown)
         if (userRole === 'no-role') {
              const allowedNoRolePaths = ['/login', '/registry', '/pending']; 
-             
              if (!isPathAllowed(path, allowedNoRolePaths)) {
-                //  console.log(`[Middleware] ⛔ NO-ROLE USER RESTRICTED. Redirecting to /login.`);
                  const url = request.nextUrl.clone();
                  url.pathname = '/login';
+                 return NextResponse.redirect(url);
              }
              return supabaseResponse;
         }
 
-        // Combine all allowed routes for the current user's role
+        // --- RBAC PERMISSION BUILDER ---
         let allowedRoutes = [...ROLE_PERMISSIONS.AUTHENTICATED_ALL]; 
 
         if (userRole === 'nominator') {
@@ -156,19 +139,20 @@ export async function middleware(request: NextRequest) {
             allowedRoutes = [...allowedRoutes, ...ROLE_PERMISSIONS.hr];
         }
         
-        // Check if the current path is allowed by the role
-        let isPathAuthorized = isPathAllowed(path, allowedRoutes);
+        const isPathAuthorized = isPathAllowed(path, allowedRoutes);
+     
+        if (!isPathAuthorized) {
+            if (request.method === 'GET') {
+                const url = request.nextUrl.clone()
+                url.pathname = '/unauthorized' 
+                return NextResponse.redirect(url)
+            } else {
+                return supabaseResponse;
+            }
+        }
         
-        // if (!isPathAuthorized) {
-        //     console.log(`[Middleware] ⛔ RBAC DENIAL for Role: ${userRole}. Path: ${path}. Redirecting to /unauthorized.`)
-        //     const url = request.nextUrl.clone()
-        //     url.pathname = '/unauthorized' 
-        //     return NextResponse.redirect(url)
-        // }
-        
-        // console.log(`[Middleware] ✅ ACCESS GRANTED for ${userRole}.`);
-
-if (path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
+        // 1. NOMINATOR PORTAL RESTRICTION
+        if (request.method === 'GET' && path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
             const { data: setting } = await supabase
                 .from('portal_settings')
                 .select('start_at, end_at, is_active')
@@ -176,7 +160,6 @@ if (path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
                 .single()
 
             let isOpen = false;
-
             if (setting && setting.is_active && setting.start_at && setting.end_at) {
                 const now = new Date();
                 const start = new Date(setting.start_at);
@@ -193,8 +176,8 @@ if (path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
             }
         }
 
-        // 2. COMMITTEE RESTRICTION (Locks EVERYTHING including profile)
-        if (path.startsWith('/committee') && !path.startsWith('/portal-closed')) {
+        // 2. COMMITTEE PORTAL RESTRICTION
+        if (request.method === 'GET' && path.startsWith('/committee') && !path.startsWith('/portal-closed')) {
             const { data: setting } = await supabase
                 .from('portal_settings')
                 .select('start_at, end_at, is_active')
@@ -202,7 +185,6 @@ if (path.startsWith('/nominators') && !path.startsWith('/portal-closed')) {
                 .single()
 
             let isOpen = false;
-
             if (setting && setting.is_active && setting.start_at && setting.end_at) {
                 const now = new Date();
                 const start = new Date(setting.start_at);
