@@ -12,6 +12,7 @@ import {
   saveCommitteeReview,
 } from "@/app/admin/committee/actions";
 import { TriangleAlert, X, CheckCircle } from "lucide-react";
+import ConfirmModal from "@/components/confirm-modal";
 
 const Toast = ({
   message,
@@ -119,6 +120,7 @@ export default function NonSupervisoryPage() {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [reviewContext, setReviewContext] = useState<any | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   // STATE
   const [toast, setToast] = useState<{
@@ -146,19 +148,27 @@ export default function NonSupervisoryPage() {
       try {
         const ctx = await getReviewContext(nomineeId);
         if (ctx) {
-          setReviewContext(ctx);
-          if (ctx.existingReview) {
-            setComments(ctx.existingReview.comments || "");
-            if (ctx.existingReview.scores_json) {
-              const { meta_ipcr_breakdown, ...savedScores } =
-                ctx.existingReview.scores_json;
-              setScores(savedScores);
+          // Server returns { error } when the current user is the nominator/owner
+          if ((ctx as any).error) {
+            setReviewContext(null);
+            setAccessError((ctx as any).error as string);
+          } else {
+            setAccessError(null);
+            setReviewContext(ctx);
+            if (ctx.existingReview) {
+              setComments(ctx.existingReview.comments || "");
+              if (ctx.existingReview.scores_json) {
+                const { meta_ipcr_breakdown, ...savedScores } =
+                  ctx.existingReview.scores_json;
+                setScores(savedScores);
+              }
             }
           }
         } else setReviewContext(null);
       } catch (err) {
         console.error("Failed to fetch review context:", err);
         setReviewContext(null);
+        setAccessError("Failed to fetch review context");
       } finally {
         setLoading(false);
       }
@@ -238,6 +248,25 @@ export default function NonSupervisoryPage() {
         onConfirm={() => processSubmission("submit")}
         isSubmitting={processingAction === "submit"}
       />
+
+      {accessError && (
+        <ConfirmModal
+          action="disqualify"
+          titleOverride="Access Blocked"
+          descriptionOverride={accessError}
+          autoCloseSeconds={6}
+          confirmLabel={"Go  to Dashboard"}
+          hideCancel={true}
+          onCancelAction={() => {
+            setAccessError(null);
+            router.push("/committee");
+          }}
+          onConfirmAction={() => {
+            setAccessError(null);
+            router.push("/committee");
+          }}
+        />
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center p-4 flex-col gap-2">
