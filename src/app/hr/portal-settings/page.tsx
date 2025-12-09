@@ -9,7 +9,7 @@ import AlertBanner from "@/components/alertBanner";
 import {
   getPortalData,
   saveAllSettings,
-  resetPortal,
+  resetEntireCycle, 
   type PeriodSetting,
 } from "@/app/admin/settings/actions";
 
@@ -92,10 +92,10 @@ export default function Page() {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    // 1. Past End Date = CLOSED
+    // 1. Past End Date = CLOSED (Highest Priority)
     if (now > endDate) return "CLOSED";
 
-    // 2. Future Start Date = PUBLISHED
+    // 2. Future Start Date = PUBLISHED (Priority over OPEN)
     if (now < startDate) return "PUBLISHED";
 
     // 3. Active Window + Data exists = OPEN (Locked)
@@ -139,8 +139,7 @@ export default function Page() {
   const nomStatus = computeStatus(nominationStartDate, nominationEndDate, counts.nom);
   const scoreStatus = computeStatus(scoringStartDate, scoringEndDate, counts.review);
 
-  // --- 🔥 RESTORED LOCKING LOGIC ---
-  // Locked if OPEN (Active Data) or CLOSED (Finished).
+  // --- LOCKED LOGIC ---
   const isNominationDisabled = nomStatus === "OPEN" || nomStatus === "CLOSED";
   const isScoringDisabled = scoreStatus === "OPEN" || scoreStatus === "CLOSED";
 
@@ -161,7 +160,6 @@ export default function Page() {
 
   // --- HANDLERS ---
   const handleDraftChange = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, currentDisabled: boolean) => {
-    // 🔥 RESTORED GUARD CLAUSE
     if (currentDisabled) {
       triggerAlert("Error", "Cannot edit dates while period is active with data or closed. Please reset first.", "error");
       return;
@@ -232,21 +230,27 @@ export default function Page() {
     setIsModalOpen(false);
     setSaving(true);
     try {
-      await resetPortal("nomination_period");
-      await resetPortal("scoring_period");
-
-      await fetchAndRefreshData();
       
-      setDraftNominationStartDate("");
-      setDraftNominationEndDate("");
-      setDraftScoringStartDate("");
-      setDraftScoringEndDate("");
+      const res = await resetEntireCycle();
 
-      triggerAlert(
-          mode === "DESTRUCTIVE" ? "Warning" : "Success", 
-          mode === "DESTRUCTIVE" ? "All submission data deleted and timeline reset." : "Timeline cleared.", 
-          mode === "DESTRUCTIVE" ? "warning" : "success"
-      );
+      if (res.success) {
+        await fetchAndRefreshData();
+        
+        setDraftNominationStartDate("");
+        setDraftNominationEndDate("");
+        setDraftScoringStartDate("");
+        setDraftScoringEndDate("");
+        setCounts({ nom: 0, review: 0 });
+  
+        triggerAlert(
+            mode === "DESTRUCTIVE" ? "Warning" : "Success", 
+            res.message, 
+            mode === "DESTRUCTIVE" ? "warning" : "success"
+        );
+      } else {
+        triggerAlert("Error", res.message, "error");
+      }
+
     } catch (err) {
       console.error("Reset error:", err);
       triggerAlert("Error", "Failed to reset portal.", "error");
