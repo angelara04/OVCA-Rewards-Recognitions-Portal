@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams, useParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Section from "@/components/section";
 import InputField from "@/components/input";
 import CheckboxGroup from "@/components/checkbox";
@@ -63,7 +63,6 @@ const SubmitConfirmationModal = ({
 }) => {
   if (!isOpen) return null;
   return (
-    //Remove blur to be consistent with other modals
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200">
         <button
@@ -118,7 +117,10 @@ export default function JuniorPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [showSubmitConfirmation, setShowSubmitConfirmation] = useState(false);
+  
+  // adds exclusive selection
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [reviewContext, setReviewContext] = useState<any | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
@@ -152,13 +154,23 @@ export default function JuniorPage() {
       try {
         const ctx = await getReviewContext(nomineeId);
         if (ctx) {
-          // Server returns { error } when the current user is the nominator/owner
           if ((ctx as any).error) {
             setReviewContext(null);
             setAccessError((ctx as any).error as string);
           } else {
             setAccessError(null);
             setReviewContext(ctx);
+            
+            // Initialize checkboxes based on current nomination category
+            if (ctx.nomination?.category) {
+               if (
+                 ctx.nomination.category === "Industrial and Allied Professionals (SG 1 - 8)" ||
+                 ctx.nomination.category === "Junior Professionals (SG 1 - 8)"
+               ) {
+                 setSelectedValues([ctx.nomination.category]);
+               }
+            }
+
             if (ctx.existingReview) {
               setComments(ctx.existingReview.comments || "");
               if (ctx.existingReview.scores_json) {
@@ -208,21 +220,15 @@ export default function JuniorPage() {
     },
   ];
 
-  useEffect(() => {
-    const categoryParam = searchParams.get("category") || "";
-    if (categoryParam) {
-      if (
-        categoryParam === "Industrial and Allied Professionals (SG 1 - 8)" ||
-        categoryParam === "Junior Professionals (SG 1 - 8)"
-      ) {
-        setSelectedValues([categoryParam]);
-      }
-    }
-  }, [searchParams]);
-
+  // 🔥 UPDATED: Exclusive Checkbox Logic (Only one at a time)
   const handleCheckboxChange = (value: string, checked: boolean) => {
-    if (checked) setSelectedValues((prev) => [...prev, value]);
-    else setSelectedValues((prev) => prev.filter((v) => v !== value));
+    if (checked) {
+        // If checked, replace the entire array with just this new value (Radio behavior)
+        setSelectedValues([value]);
+    } else {
+        // If unchecked, empty the array (optional, allows unselecting)
+        setSelectedValues([]);
+    }
   };
 
   const processSubmission = async (actionType: "draft" | "submit") => {
@@ -251,6 +257,11 @@ export default function JuniorPage() {
     formData.append("y2022", ipcr.y2022);
     formData.append("y2023", ipcr.y2023);
     formData.append("y2024", ipcr.y2024);
+    
+    // 🔥 NEW: Send override category if one is selected
+    if (selectedValues.length > 0) {
+        formData.append("override_category", selectedValues[0]);
+    }
 
     Object.entries(scoresPayload).forEach(([key, value]) => {
       formData.append(key, value.toString());
@@ -337,7 +348,7 @@ export default function JuniorPage() {
       const res = await disqualifyNomination(nomineeId);
       if (res.success) {
         showToast("Nomination disqualified successfully!", "success");
-        router.refresh(); // refresh the page
+        router.refresh(); 
       } else {
         showToast(res.message || "Failed to disqualify nomination.", "error");
       }
@@ -437,12 +448,13 @@ export default function JuniorPage() {
               value={nomineeId}
             />
 
+            {/* 🔥 EXCLUSIVE CHECKBOX SECTION */}
             <CheckboxGroup
               label="Category"
               name="category"
               options={options}
-              values={selectedValues}
-              onChange={handleCheckboxChange}
+              values={selectedValues} // Only one value will be here
+              onChange={handleCheckboxChange} // New handler
               disabled={isCompleted}
             />
 
