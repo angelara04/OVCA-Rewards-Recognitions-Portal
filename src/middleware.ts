@@ -17,7 +17,6 @@ const ROLE_PERMISSIONS = {
         '/registry',
         '/pending',      
         '/admin/portal-closed',  // comment out during beta
-        '/admin'
     ],
     nominator: [
         '/nominators',
