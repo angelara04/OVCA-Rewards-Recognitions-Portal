@@ -23,11 +23,12 @@ const ROLE_PERMISSIONS = {
     ],
     committee: [
         '/committee',
-        '/admin',       // comment out during beta
+        '/nominators',  
+        // '/admin',       // comment out during beta
     ],
     hr: [
         '/hr',
-        '/admin',      // comment out during beta
+        // '/admin',      // comment out during beta
     ]
 }
 
