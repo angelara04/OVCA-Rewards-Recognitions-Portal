@@ -11,14 +11,7 @@ export async function login(formData: FormData) {
   // 1. Get the raw values
   const rawEmail = formData.get('username') as string
   const rawPassword = formData.get('password') as string
-
-  // --- DEBUG LOGS (Check your VS Code Terminal when you click login) ---
-  console.log("------------------------------------------------")
-  console.log("LOGIN ATTEMPT:")
-  console.log("Email received:", rawEmail)
-  console.log("Password received:", rawPassword ? "*****" : "NULL/EMPTY")
-  console.log("------------------------------------------------")
-
+  
   // Custom validation before Supabase call to provide better error messages
   if (!rawEmail || !rawPassword) {
     // If either field is missing, return specific error
