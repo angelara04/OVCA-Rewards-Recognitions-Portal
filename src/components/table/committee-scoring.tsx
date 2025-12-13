@@ -103,13 +103,20 @@ export default function PerformanceEvaluationForm({
   // --- Set Part B max points based on nomination category ---
   useEffect(() => {
     const category = reviewContext?.nomination?.category ?? "";
-    if (category === "Non-Teaching Personnel (Senior Level)")
+
+    if (category === "Non-Teaching Personnel (Senior Level)") {
       setPartBMax([10, 8, 4, 3]);
-    else if (
-      category === "Non-Teaching Personnel (Junior and Industrial Level)"
-    )
+    } else if (
+      [
+        "Non-Teaching Personnel (Junior and Industrial Level)",
+        "Industrial and Allied Professionals (SG 1 - 8)",
+        "Junior Professionals (SG 1 - 8)",
+      ].includes(category)
+    ) {
       setPartBMax([12, 5, 2, 6]);
-    else setPartBMax([0, 0, 0, 0]);
+    } else {
+      setPartBMax([0, 0, 0, 0]);
+    }
   }, [reviewContext]);
 
   // --- Handlers ---
@@ -195,8 +202,7 @@ export default function PerformanceEvaluationForm({
     return sum + (scores[key] || 0);
   }, 0);
 
-  const overallTotal =
-    (Number(avgPartA) || 0) + totalPartB + totalPartC;
+  const overallTotal = (Number(avgPartA) || 0) + totalPartB + totalPartC;
 
   return (
     <div>
