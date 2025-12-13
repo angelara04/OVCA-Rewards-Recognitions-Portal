@@ -6,6 +6,7 @@ import Section from "@/components/section";
 import Input from "@/components/input";
 import PortalStatusBadge from "@/components/portal-status-badge";
 import AlertBanner from "@/components/alertBanner";
+import { useRouter } from "next/navigation";
 import {
   getPortalData,
   saveAllSettings,
@@ -61,6 +62,7 @@ const toDateTimeInput = (iso?: string | null) => {
 
 export default function Page() {
   // SAVED states
+  const router = useRouter();
   const [nominationStartDate, setNominationStartDate] = useState<string>("");
   const [nominationEndDate, setNominationEndDate] = useState<string>("");
   const [scoringStartDate, setScoringStartDate] = useState<string>("");
@@ -296,7 +298,14 @@ export default function Page() {
             Manage nomination and voting periods, and control portal access
           </p>
         </div>
-        <Button size="sm" variant="secondary">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // navigate to dashboard — change path if your dashboard route is different
+            router.push("/hr/hr-dashboard");
+          }}
+        >
           <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>

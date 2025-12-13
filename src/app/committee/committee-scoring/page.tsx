@@ -168,7 +168,14 @@ export default function CommitteeScoring() {
             nominees.
           </p>
         </div>
-        <Button size="sm" variant="secondary">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // navigate to dashboard — change path if your dashboard route is different
+            router.push("/committee/review-dashboard");
+          }}
+        >
           <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>

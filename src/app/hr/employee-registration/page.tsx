@@ -9,6 +9,7 @@ import Table, { Column } from "@/components/table/hr-registration-table";
 import DropdownMenu from "@/components/dropdown-menu";
 import ConfirmModal from "@/components/confirm-modal";
 import Section from "@/components/section";
+import { useRouter } from "next/navigation";
 import {
   getPendingRegistrations,
   getApprovedRegistrations,
@@ -37,6 +38,7 @@ interface Employee {
 }
 // Main Page Component
 export default function Page() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabKey>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
@@ -154,7 +156,16 @@ export default function Page() {
           <h1 className="text-[28px] font-bold text-[var(--black)]">Employee Registration</h1>
           <p className="text-base text-[var(--dark-grey)]">Review and verify employee registrations for nomination eligibility</p>
         </div>
-        <Button size="sm" variant="secondary"><div className="px-5 py-1">Back to Dashboard</div></Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // navigate to dashboard — change path if your dashboard route is different
+            router.push("/hr/hr-dashboard");
+          }}
+        >
+          <div className="px-5 py-1">Back to Dashboard</div>
+        </Button>
       </div>
 
       <div className="w-full max-w-6xl">
