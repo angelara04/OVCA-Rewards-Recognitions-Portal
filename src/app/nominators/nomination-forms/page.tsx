@@ -378,6 +378,15 @@ const handleViewFile = (entry: UploadedFile) => {
 
   }
 
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    const words = val.trim() === '' ? 0 : val.trim().split(/\s+/).length
+
+    if (words <= 250 || val.length < description.length) {
+      setDescription(val)
+    }
+  }
+
   // UI
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-start p-10">
@@ -440,10 +449,18 @@ const handleViewFile = (entry: UploadedFile) => {
               <Input id="length" label="Length of Service with UP (Years)" placeholder="e.g. 10" value={length} type="number" onChange={handleLengthChange} width="w-full" disabled={readonly} />
             </div>
 
-            <div>
+<div>
               <label className="block text-[15px] font-medium mb-2">Brief description of the outstanding achievements of the Nominee (max 250 words)</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className={`w-full border border-[var(--outline-grey)] rounded-lg p-3 resize-none focus:ring-2 ${readonly ? 'bg-gray-100 cursor-not-allowed text-gray-500'  : 'focus:ring-[var(--maroon)]'}`} disabled={readonly} />
-              <div className="text-right text-xs text-[var(--dark-grey)]">{descWords}/250 words</div>
+              <textarea 
+                value={description} 
+                onChange={handleDescriptionChange}
+                rows={6} 
+                className={`w-full border border-[var(--outline-grey)] rounded-lg p-3 resize-none focus:ring-2 ${readonly ? 'bg-gray-100 cursor-not-allowed text-gray-500'  : 'focus:ring-[var(--maroon)]'}`} 
+                disabled={readonly} 
+              />
+              <div className={`text-right text-xs mt-1 ${descWords >= 250 ? "text-[var(--maroon)] font-bold" : "text-[var(--dark-grey)]"}`}>
+                {descWords}/250 words {descWords >= 250 && "(Limit Reached)"}
+              </div>
             </div>
 
             {/* File Upload */}

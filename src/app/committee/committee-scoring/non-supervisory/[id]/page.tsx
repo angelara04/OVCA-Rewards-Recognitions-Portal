@@ -13,6 +13,7 @@ import {
 } from "@/app/admin/committee/actions";
 import { TriangleAlert, X, CheckCircle } from "lucide-react";
 import ConfirmModal from "@/components/confirm-modal";
+import NominationDescription from "@/components/nomination-description";
 
 const Toast = ({
   message,
@@ -337,14 +338,16 @@ export default function NonSupervisoryPage() {
               <h1 className="text-[20px] font-bold">
                 Nominee’s Submitted Requirements and Documents
               </h1>
-              <span className="text-[15px]">
-                Nominee’s Submitted Requirements and Documents
-              </span>
+
+              <NominationDescription 
+                description={(reviewContext as any)?.nomination?.achievements} 
+              />
+
               <Button
                 size="sm"
                 variant="primary"
                 onClick={() => setShowModal(true)}
-                className="py-2"
+                className="py-3"
               >
                 View Documents
               </Button>
