@@ -61,7 +61,7 @@ export default function Page() {
 
         // average null if ≤ 3 valid scores
         const avgScore =
-          validScores.length > 3
+          validScores.length > 2
             ? parseFloat(
                 (
                   validScores.reduce((a, b) => a + b, 0) / validScores.length
