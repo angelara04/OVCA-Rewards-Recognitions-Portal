@@ -29,7 +29,7 @@ export default function Table({ title, data }: TableProps) {
               <th className="text-left py-3 px-5 font-medium">Category</th>
               <th className="text-left py-3 px-5 font-medium">Nominator</th>
               <th className="text-left py-3 px-5 font-medium">
-                Date Submitted
+                Date
               </th>
               <th className="text-left py-3 px-5 font-medium">Status</th>
               <th className="text-left py-3 px-5 font-medium">Actions</th>

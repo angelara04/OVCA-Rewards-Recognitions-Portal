@@ -109,40 +109,44 @@ export default function DashboardPage() {
     });
   }
 
-  async function confirmDelete() {
-    if (!pendingDeleteId) return;
-    setLoading(true);
-    try {
-      const res = await deleteNomination(pendingDeleteId);
-      if (res?.success) {
-        setBanner({
-          title: "Deleted",
-          message: "Draft deleted.",
-          variant: "success",
-          duration: 4000,
-        });
-        await reload();
-      } else {
-        setBanner({
-          title: "Delete Failed",
-          message: res?.message || "Delete failed",
-          variant: "error",
-          duration: 4000,
-        });
-      }
-    } catch (err) {
-      console.error(err);
+ async function confirmDelete() {
+  if (!pendingDeleteId) return;
+
+  const id = pendingDeleteId;
+  setPendingDeleteId(null);
+  setBanner(null);
+  
+  setLoading(true);
+  try {
+    const res = await deleteNomination(id);
+    if (res?.success) {
+      setBanner({
+        title: "Deleted",
+        message: "Draft deleted.",
+        variant: "success",
+        duration: 4000,
+      });
+      await reload();
+    } else {
       setBanner({
         title: "Delete Failed",
-        message: "Delete failed",
+        message: res?.message || "Delete failed",
         variant: "error",
         duration: 4000,
       });
-    } finally {
-      setPendingDeleteId(null);
-      setLoading(false);
     }
+  } catch (err) {
+    setBanner({
+      title: "Delete Failed",
+      message: "Delete failed",
+      variant: "error",
+      duration: 4000,
+    });
+  } finally {
+    setLoading(false);
   }
+}
+
 
   function cancelDelete() {
     setPendingDeleteId(null);
@@ -163,7 +167,7 @@ export default function DashboardPage() {
     { key: "nomineeid", label: "Nominee ID" },
     { key: "nomineename", label: "Nominee Name" },
     { key: "category", label: "Category" },
-    { key: "datesubmitted", label: "Date Submitted" },
+    { key: "datesubmitted", label: "Date" },
     { key: "status", label: "Status" },
   ];
 
