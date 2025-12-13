@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import Role from "./role";
 import Button from "../button";
+import { createClient } from "@/utils/supabase/client";
 
 interface GreetingProps {
   Fname: string;
@@ -12,14 +13,14 @@ interface GreetingProps {
 
 export default function Greeting({ Fname, role }: GreetingProps) {
   const router = useRouter();
+  const supabase = createClient(); 
 
-  const handleLogout = () => {
-    // Optional: clear session or token
-    // localStorage.removeItem("token");
-    // sessionStorage.clear();
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
 
-    // Redirect to login page
     router.push("/login");
+    
+    router.refresh();
   };
 
   return (
