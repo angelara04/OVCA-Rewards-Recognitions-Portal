@@ -53,6 +53,7 @@ export default function PerformanceEvaluationForm({
   if (!reviewContext) return null;
 
   // Table descriptions
+  const REFERENCE_TABLE_LINK = "https://l.messenger.com/l.php?u=https%3A%2F%2Fdocs.google.com%2Fspreadsheets%2Fd%2F10mbhlYnG9oHGCcdYw8ctIqB91NnqAl6eJzk5VLrGcv0%2Fedit%3Fusp%3Dsharing&h=AT18doMAplpCLgmC0RnDIBBVzw-IsPcBwNUwYvIihSnoj68W0u0IrxUYcHB0nj1YBuofvp9Cmy3fVn3IRVaHo2KTHoz5KJPRnJvbVS5rhTYQq7imao_Ls1vfe9Pbiuer7gvafu9nypRZ_gL6etpJ_A"
   const partAKeys = ["2022", "2023", "2024 (Jan–Jun)"];
   const partBKeys = [
     "Intervening Activities",
@@ -270,6 +271,7 @@ export default function PerformanceEvaluationForm({
                 className="border-b border-[var(--outline-grey)]"
               >
                 <td className="p-3">{indicator}</td>
+
                 <td className="p-3">{partBMax[idx] ?? 0}</td>
                 <td className="p-3">
                   <input
@@ -306,7 +308,24 @@ export default function PerformanceEvaluationForm({
                 key={indicator}
                 className="border-b border-[var(--outline-grey)]"
               >
-                <td className="p-3">{indicator}</td>
+                <td className="p-3">
+                {indicator.includes("(refer") ? (
+                  <>
+                    {indicator.split(" (refer")[0]}{" "}
+                    <a
+                      href={REFERENCE_TABLE_LINK}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-dark-grey underline hover:text-blue-800"
+                    >
+                      (refer table)
+                    </a>
+                  </>
+                ) : (
+                  indicator
+                )}
+              </td>
+
                 <td className="p-3">1–5</td>
                 <td className="p-3">
                   <input
