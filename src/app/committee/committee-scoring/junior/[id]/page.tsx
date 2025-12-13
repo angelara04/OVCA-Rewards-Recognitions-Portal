@@ -15,6 +15,7 @@ import {
 } from "@/app/admin/committee/actions";
 import { TriangleAlert, X, CheckCircle } from "lucide-react";
 import ConfirmModal from "@/components/confirm-modal";
+import NominationDescription from "@/components/nomination-description";
 
 const Toast = ({
   message,
@@ -457,19 +458,22 @@ export default function JuniorPage() {
               onChange={handleCheckboxChange} // New handler
               disabled={isCompleted}
             />
+            
 
-            <div className="py-6 flex flex-col gap-2">
+            <div className="py-4 flex flex-col gap-2">
               <h1 className="text-[20px] font-bold">
-                Nominee’s Submitted Requirements and Documents
+                Nominee’s Submitted Requirements and Description
               </h1>
-              <span className="text-[15px]">
-                Nominee’s Submitted Requirements and Documents
-              </span>
+
+              <NominationDescription 
+                description={(reviewContext as any)?.nomination?.achievements} 
+              />
+
               <Button
                 size="sm"
                 variant="primary"
                 onClick={() => setShowModal(true)}
-                className="py-2"
+                className="py-3"
               >
                 View Documents
               </Button>

@@ -14,6 +14,7 @@ import {
 } from "@/app/admin/committee/actions";
 import { TriangleAlert, X, CheckCircle } from "lucide-react"; // Added CheckCircle
 import ConfirmModal from "@/components/confirm-modal";
+import NominationDescription from "@/components/nomination-description";
 
 // --- TOAST COMPONENT ---
 const Toast = ({
@@ -437,14 +438,16 @@ export default function SeniorPage() {
               <h1 className="text-[20px] font-bold">
                 Nominee’s Submitted Requirements and Documents
               </h1>
-              <span className="text-[15px]">
-                Nominee’s Submitted Requirements and Documents
-              </span>
+
+              <NominationDescription 
+                description={(reviewContext as any)?.nomination?.achievements} 
+              />
+
               <Button
                 size="sm"
                 variant="primary"
                 onClick={() => setShowModal(true)}
-                className="py-2"
+                className="py-3"
               >
                 View Documents
               </Button>

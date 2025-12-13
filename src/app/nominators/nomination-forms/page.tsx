@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Section from '@/components/section'
 import Button from '@/components/button'
 import Input from '@/components/input'
 import Dropdown from '@/components/dropdown'
 import SearchableDropdown from '@/components/searchable-dropdown'
 import ConfirmModal from '@/components/confirm-modal'
-import { Upload, FileText, X } from 'lucide-react'
+import { Upload, FileText, X, CheckCircle, TriangleAlert } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface UploadedFile {
@@ -35,7 +35,11 @@ export default function Page() {
   const [consentName, setConsentName] = useState('')
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [dragActive, setDragActive] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
+  
+  // TOAST STATE (Message + Type)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const toastTimer = useRef<NodeJS.Timeout | null>(null)
+
   const [signatureFile, setSignatureFile] = useState<File | null>(null)
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [sigDragActive, setSigDragActive] = useState(false)
@@ -48,7 +52,6 @@ export default function Page() {
   const [readonly, setReadonly] = useState(false)
   const [category, setCategory] = useState('')
   const [signatureDriveFile, setSignatureDriveFile] = useState<{ name: string; drive_file_id: string } | null>(null)
-
 
   useEffect(() => {
     const words = description.trim() === '' ? 0 : description.trim().split(/\s+/).length
@@ -85,10 +88,8 @@ export default function Page() {
       try {
         const res = await fetch(`/api/nomination?nomination_id=${encodeURIComponent(nominationIdParam)}`)
         if (!res.ok) {
-          const text = await res.text()
-          console.error('Failed to fetch nomination', res.status, text)
           if (!mounted) return
-          setToast('Failed to load nomination')
+          showToast('Failed to load nomination', 'error')
           setLoading(false)
           return
         }
@@ -97,7 +98,7 @@ export default function Page() {
 
         const nom = data?.nomination
         if (!nom) {
-          setToast('Nomination not found')
+          showToast('Nomination not found', 'error')
           setLoading(false)
           return
         }
@@ -113,7 +114,6 @@ export default function Page() {
         setEditingId(nom.id)
         setCategory(nom.category || '')
 
-        // === Separate evidence vs consent attachments ===
         if (data.attachments) {
           const evidenceAttachments = data.attachments.evidence || []
           const mappedEvidence = evidenceAttachments.map((a: any) => ({
@@ -144,7 +144,7 @@ export default function Page() {
         else setReadonly(false)
       } catch (err) {
         console.error(err)
-        setToast('Error loading nomination')
+        showToast('Error loading nomination', 'error')
       } finally {
         if (mounted) setLoading(false)
       }
@@ -157,9 +157,16 @@ export default function Page() {
 
   const acceptedTypes = ['.jpg', '.png', '.zip', '.docx', '.pdf']
 
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+  // --- REFINED TOAST FUNCTION ---
+  // Added timer cleanup to ensure toast always shows when clicked multiple times
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    
+    setToast({ message: msg, type })
+    toastTimer.current = setTimeout(() => {
+        setToast(null)
+        toastTimer.current = null
+    }, 3000)
   }
 
   const formatFileSize = (bytes?: number): string => {
@@ -173,7 +180,7 @@ export default function Page() {
     const valid = selected.filter((file) =>
       acceptedTypes.some((ext) => file.name.toLowerCase().endsWith(ext))
     )
-    if (valid.length < selected.length) showToast('Some files were rejected (unsupported type)')
+    if (valid.length < selected.length) showToast('Some files were rejected (unsupported type)', 'error')
     const newFiles = valid.map((f) => ({ file: f, uploaded: false, name: f.name, size: f.size } as UploadedFile))
     setFiles((prev) => [...prev, ...newFiles])
 
@@ -214,58 +221,26 @@ export default function Page() {
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  // const handleDownloadFile = (entry: UploadedFile) => {
-  //   if (entry.file) {
-  //     const url = URL.createObjectURL(entry.file)
-  //     const a = document.createElement('a')
-  //     a.href = url
-  //     a.download = entry.name || 'file'
-  //     document.body.appendChild(a)
-  //     a.click()
-  //     document.body.removeChild(a)
-  //     URL.revokeObjectURL(url)
-  //     return
-  //   }
-
-  //   if (entry.id) {
-  //     const downloadUrl = `https://drive.google.com/uc?id=${entry.drive_file_id}&export=download`
-  //     const a = document.createElement('a')
-  //     a.href = downloadUrl
-  //     a.download = entry.name || 'file'
-  //     document.body.appendChild(a)
-  //     a.click()
-  //     document.body.removeChild(a)
-  //     return
-  //   }
-
-  //   showToast('File not available for download')
-  // }
-// Replace existing handleDownloadFile(...) with this function
-const handleViewFile = (entry: UploadedFile) => {
-  // If it's a local File (not yet uploaded to Drive), open an object URL in a new tab
-  if (entry.file) {
-    const url = URL.createObjectURL(entry.file)
-    window.open(url, "_blank")
-    // revoke later so the new tab has time to load the blob URL
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
-    return
+  const handleViewFile = (entry: UploadedFile) => {
+    if (entry.file) {
+      const url = URL.createObjectURL(entry.file)
+      window.open(url, "_blank")
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      return
+    }
+    if (entry.drive_file_id) {
+      const viewUrl = `https://drive.google.com/file/d/${entry.drive_file_id}/view`
+      window.open(viewUrl, "_blank")
+      return
+    }
+    showToast("File not available for viewing", 'error')
   }
-
-  // If it's an existing file on Drive, open Drive viewer in a new tab
-  if (entry.drive_file_id) {
-    const viewUrl = `https://drive.google.com/file/d/${entry.drive_file_id}/view`
-    window.open(viewUrl, "_blank")
-    return
-  }
-
-  showToast("File not available for viewing")
-}
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return
     const file = e.target.files[0]
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      showToast('Signature file must be PNG or JPG')
+      showToast('Signature file must be PNG or JPG', 'error')
       return
     }
     setSignatureFile(file)
@@ -282,7 +257,7 @@ const handleViewFile = (entry: UploadedFile) => {
     const file = e.dataTransfer.files[0]
     if (!file) return
     if (!['image/png', 'image/jpeg'].includes(file.type)) {
-      showToast('Signature file must be PNG or JPG')
+      showToast('Signature file must be PNG or JPG', 'error')
       return
     }
     setSignatureFile(file)
@@ -317,15 +292,25 @@ const handleViewFile = (entry: UploadedFile) => {
     }
   }
 
+  const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    const words = val.trim() === '' ? 0 : val.trim().split(/\s+/).length
+
+    // Word Limiter Logic
+    if (words <= 250 || val.length < description.length) {
+      setDescription(val)
+    }
+  }
+
   async function submitToServer(action: 'save' | 'submit') {
     if (readonly) return
 
     if (action === 'submit') {
-      if (!nomineeName.trim()) return showToast('Please fill nominee name.')
-      if (!position.trim()) return showToast('Please fill position.')
-      if (!unit.trim()) return showToast('Please select unit/office/college.')
-      if (!description.trim()) return showToast('Please add a short description.')
-      if (!consentName.trim()) return showToast('Please fill the printed name for nominee consent.')
+      if (!nomineeName.trim()) return showToast('Please fill nominee name.', 'error')
+      if (!position.trim()) return showToast('Please fill position.', 'error')
+      if (!unit.trim()) return showToast('Please select unit/office/college.', 'error')
+      if (!description.trim()) return showToast('Please add a short description.', 'error')
+      if (!consentName.trim()) return showToast('Please fill the printed name for nominee consent.', 'error')
     }
 
     const setLoadingState = action === 'save' ? setSavingDraft : setSubmitting
@@ -343,7 +328,6 @@ const handleViewFile = (entry: UploadedFile) => {
       formData.append('achievements', description)
       formData.append('consent_printed_name', consentName)
 
-      // === Only evidence attachments here ===
       formData.append(
         'existing_attachments',
         JSON.stringify(files.filter((f) => f.uploaded && f.id).map((f) => ({ id: f.id, file_name: f.name })))
@@ -359,15 +343,15 @@ const handleViewFile = (entry: UploadedFile) => {
       const data = await res.json()
 
       if (res.ok && data.success) {
-        showToast(data.message || 'Saved')
+        showToast(data.message || (action === 'save' ? 'Draft saved successfully' : 'Submitted successfully'), 'success')
         if (action === 'submit') setTimeout(() => router.push('/nominators/dashboard'), 800)
         else setEditingId(data.id || null)
       } else {
-        showToast(data?.message || 'Server error')
+        showToast(data?.message || 'Server error', 'error')
       }
     } catch (e) {
       console.error(e)
-      showToast('Network or server error')
+      showToast('Network or server error', 'error')
     } finally {
       setLoadingState(false)
     }
@@ -378,14 +362,10 @@ const handleViewFile = (entry: UploadedFile) => {
 
   }
 
-  // UI
   return (
     <Section width="w-full" height="min-h-screen" alignment="items-start p-10">
       <div className="w-full mx-auto relative">
-        {toast && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-[var(--maroon)] text-white text-sm px-4 py-2 rounded-md shadow">{toast}</div>
-        )}
-
+        
         <div className="flex justify-between items-center mb-10 my-2">
           <div>
             <h1 className="text-3xl font-bold">Nomination Form</h1>
@@ -442,8 +422,16 @@ const handleViewFile = (entry: UploadedFile) => {
 
             <div>
               <label className="block text-[15px] font-medium mb-2">Brief description of the outstanding achievements of the Nominee (max 250 words)</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className={`w-full border border-[var(--outline-grey)] rounded-lg p-3 resize-none focus:ring-2 ${readonly ? 'bg-gray-100 cursor-not-allowed text-gray-500'  : 'focus:ring-[var(--maroon)]'}`} disabled={readonly} />
-              <div className="text-right text-xs text-[var(--dark-grey)]">{descWords}/250 words</div>
+              <textarea 
+                value={description} 
+                onChange={handleDescriptionChange} 
+                rows={6} 
+                className={`w-full border border-[var(--outline-grey)] rounded-lg p-3 resize-none focus:ring-2 ${readonly ? 'bg-gray-100 cursor-not-allowed text-gray-500'  : 'focus:ring-[var(--maroon)]'}`} 
+                disabled={readonly} 
+              />
+              <div className={`text-right text-xs mt-1 ${descWords >= 250 ? "text-[var(--maroon)] font-bold" : "text-[var(--dark-grey)]"}`}>
+                {descWords}/250 words {descWords >= 250 && "(Limit Reached)"}
+              </div>
             </div>
 
             {/* File Upload */}
@@ -466,7 +454,7 @@ const handleViewFile = (entry: UploadedFile) => {
             )}
             
 
-            {/* Attachments list (always visible; view-only buttons when readonly) */}
+            {/* Attachments list */}
             <div className="mt-4">
               <label className="block text-[15px] font-medium mb-2">Attachments</label>
               {files.length === 0 ? (
@@ -497,7 +485,8 @@ const handleViewFile = (entry: UploadedFile) => {
                 </div>
               )}
             </div>
-              {/* Nominee Consent */}
+
+            {/* Nominee Consent */}
             <div className=" bg-white ">
               <div className="text-[15px] font-semibold mb-2">Nominee Consent</div>
               <p className="text-[15px] mb-3">
@@ -530,7 +519,7 @@ const handleViewFile = (entry: UploadedFile) => {
                           window.open(viewUrl, "_blank")
                           return
                         }
-                        showToast("Signature file not available for viewing")
+                        showToast("Signature file not available for viewing", 'error')
                       }}
                     >
                       View
@@ -571,12 +560,9 @@ const handleViewFile = (entry: UploadedFile) => {
                   </label>
                 </div>
               )}
-
-              
             </div>
 
-
-            {/* Nominated By (disabled, bound to fname fetched from profile) */}
+            {/* Nominated By */}
             <div>
               <label className="block text-[15px] font-medium mb-2">Nominated By</label>
               <input type="text" value={fname || 'Your Name'} disabled className="w-full bg-[var(--outline-grey)] border border-[var(--outline-grey)] rounded-lg p-3 cursor-not-allowed" />
@@ -595,7 +581,6 @@ const handleViewFile = (entry: UploadedFile) => {
               />
             </div>
           )}
-
 
             {/* Action buttons */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
@@ -635,7 +620,22 @@ const handleViewFile = (entry: UploadedFile) => {
           )}
         </Section>
 
-        {toast && (<div className="fixed bottom-5 right-5 bg-[var(--maroon)] text-white text-sm px-4 py-2 rounded-md shadow-md">{toast}</div>)}
+        {/* TOAST COMPONENT */}
+        {toast && (
+          <div className={`fixed bottom-5 right-5 z-50 flex items-center gap-3 px-6 py-4 rounded-lg shadow-lg animate-in slide-in-from-right-5 fade-in duration-300 ${toast.type === 'success' ? 'bg-[var(--forest-green)]' : 'bg-[var(--maroon)]'} text-white`}>
+            {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <TriangleAlert className="w-4 h-4" />}
+            <span className="text-sm font-medium">{toast.message}</span>
+            <button 
+              onClick={() => {
+                setToast(null)
+                if (toastTimer.current) clearTimeout(toastTimer.current)
+              }} 
+              className="ml-4"
+            >
+               <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
       </div>
     </Section>
   )
