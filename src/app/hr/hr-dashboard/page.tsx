@@ -168,7 +168,7 @@ export default function Page() {
           <Button
           size="sm"
           variant="primary"
-          onClick={() => router.push('./employee-registration')}
+          onClick={() => router.push('/hr/employee-registration')}
         >
           <div className="px-5 py-1">Review Registrations</div>
         </Button>

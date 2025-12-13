@@ -3,7 +3,6 @@ import React, { useMemo, useState, useEffect } from "react";
 import { FolderX, MoreHorizontal } from "lucide-react";
 import Section from "@/components/section";
 import Card from "@/components/card";
-import Button from "@/components/button";
 import { SearchBar } from "@/components/search-bar";
 import Table, { Column } from "@/components/table/committee-table";
 import DropdownMenu from "@/components/dropdown-menu";
@@ -133,9 +132,6 @@ export default function ReviewDashboardPage() {
             score nominations
           </p>
         </div>
-        <Button size="sm" variant="secondary">
-          <div className="px-5 py-1">Back to Dashboard</div>
-        </Button>
       </div>
 
       {/* Cards */}

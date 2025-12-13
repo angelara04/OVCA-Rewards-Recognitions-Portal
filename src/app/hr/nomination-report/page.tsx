@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, use } from "react";
 import { FolderX } from "lucide-react";
 import Button from "@/components/button";
+import { useRouter } from "next/navigation";
 import { SearchBar } from "@/components/search-bar";
 import NominationReportTable, {
   type Column,
@@ -31,6 +32,7 @@ interface Nomination {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isClient, setIsClient] = useState(false);
 
@@ -453,9 +455,6 @@ export default function Page() {
               visibility
             </p>
           </div>
-          <Button size="sm" variant="secondary">
-            <div className="px-5 py-1">Back to Dashboard</div>
-          </Button>
         </div>
 
         <div className="max-w-6xl w-full bg-[var(--white)] border border-[var(--outline-grey)] rounded-xl shadow-sm px-6 py-6 min-h-[75vh] flex flex-col relative content-area">
@@ -506,7 +505,14 @@ export default function Page() {
             visibility
           </p>
         </div>
-        <Button size="sm" variant="secondary">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            // navigate to dashboard — change path if your dashboard route is different
+            router.push("/hr/hr-dashboard");
+          }}
+        >
           <div className="px-5 py-1">Back to Dashboard</div>
         </Button>
       </div>
