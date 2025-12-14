@@ -3,13 +3,23 @@
 import { registerUser } from "./actions"
 import Button from "@/components/button"
 import Input from "@/components/input"
+import { useState } from "react"
 
 export default function RegistryPage() {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    await registerUser(formData);
+  };
+
   return (
     <div className="h-screen flex bg-white">
       {/* Left side - Branded image */}
       <div className="hidden lg:flex lg:w-1/2 bg-cover bg-center overflow-hidden">
-        <img src="../login-side-picture.png" className="w-full h-full object-cover" />
+        <img src="../login-side-picture.png" className="w-full h-full object-cover" alt="Login Side" />
       </div>
 
       {/* Right side - Register form */}
@@ -33,31 +43,36 @@ export default function RegistryPage() {
               </div>
             </div>
 
-            <form action={registerUser} className="flex flex-col gap-6">
-              {/* Full Name Field */}
+            {/* Use onSubmit instead of action */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               <div className="flex flex-col gap-2">
                 <Input 
                   id="name" 
+                  name="name" 
                   label="Full Name" 
                   type="text" 
-                  placeholder="Enter your full name" />
+                  placeholder="Enter your full name" 
+                  disabled={loading}
+                />
               </div>
 
-              {/* Department Field */}
               <div className="flex flex-col gap-2">
                 <Input 
                   id="department" 
+                  name="department" 
                   label="Department" 
                   type="text" 
-                  placeholder="Enter your department" />
+                  placeholder="Enter your department" 
+                  disabled={loading}
+                />
               </div>
 
-              {/* Register Button */}
               <Button 
                 type="submit" 
-                variant="reset" 
-                className="w-full h-11 text-white font-semibold rounded-md mt-2">
-                Register
+                variant="maroon" 
+                disabled={loading}
+                className={`w-full h-11 text-white font-semibold rounded-md mt-2 ${loading ? "opacity-70 cursor-not-allowed" : ""}`}>
+                {loading ? "Registering..." : "Register"}
               </Button>
             </form>
           </div>
