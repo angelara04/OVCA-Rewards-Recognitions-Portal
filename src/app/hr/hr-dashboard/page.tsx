@@ -10,7 +10,8 @@ import Table from '@/components/table/hr-registration-table'
 import DropdownMenu from '@/components/dropdown-menu'
 import ConfirmModal from '@/components/confirm-modal'
 import { useRouter } from 'next/navigation'
-import { getDashboardCounts, getAllRegistrations, getPortalSettings, type PortalSettings } from './actions'
+import { getDashboardCounts, getPortalSettings, type PortalSettings } from './actions'
+import { getAllProfiles } from '@/app/hr/committee-management/actions'
 
 interface Employee {
   id: string
@@ -55,14 +56,24 @@ export default function Page() {
   async function loadData() {
     setLoading(true)
     try {
-      const [dashboardCounts, all, portalSettings] = await Promise.all([
+      const [dashboardCounts, allProfiles, portalSettings] = await Promise.all([
         getDashboardCounts(),
-        getAllRegistrations(),
+        getAllProfiles(),
         getPortalSettings(),
       ])
 
       setCounts(dashboardCounts)
-      setProfiles(all)
+      // map Profile -> Employee shape expected by this page/table
+      const mappedProfiles = (allProfiles ?? []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        role: p.role ?? 'N/A',
+        department: p.department ?? 'N/A',
+        email: p.email,
+        status: undefined,
+        dateRegistered: p.created_at ?? undefined,
+      }))
+      setProfiles(mappedProfiles)
       setSettings(portalSettings)
     } catch (err) {
       console.error('Error loading HR dashboard data:', err)
