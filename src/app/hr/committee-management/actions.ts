@@ -6,7 +6,7 @@ export interface Profile {
   id: string
   name: string
   email?: string
-  role: 'committee' | 'nominator'
+  role: string
   department?: string
   created_at?: string
 }
@@ -51,6 +51,32 @@ export async function getNominators(): Promise<Profile[]> {
 
   if (error) {
     console.error('Error fetching nominators:', error)
+    return []
+  }
+
+  return (data || []).map(profile => ({
+    ...profile,
+    created_at: profile.created_at
+      ? new Date(profile.created_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
+      : ''
+  }))
+}
+
+
+export async function getAllProfiles(): Promise<Profile[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, name, email, role, department, created_at')
+    .in('role', ['nominator', 'committee'])
+    .order('name', { ascending: true })
+
+  if (error) {
+    console.error('Error fetching all profiles:', error)
     return []
   }
 

@@ -3,9 +3,9 @@
 import { createClient } from '@/utils/supabase/server'
 import {
   getPendingRegistrations,
-  getApprovedRegistrations,
   getDeniedRegistrations,
 } from '@/app/hr/employee-registration/actions'
+import { getAllProfiles } from '@/app/hr/committee-management/actions'
 
 export interface Employee {
   id: string
@@ -26,9 +26,9 @@ export interface PortalSettings {
 
 //  Returns the SAME DATA SHAPE as employee-registration → "All" tab
 export async function getAllRegistrations(): Promise<Employee[]> {
-  const [pending, approved, denied] = await Promise.all([
+  const [pending, profiles, denied] = await Promise.all([
     getPendingRegistrations(),
-    getApprovedRegistrations(),
+    getAllProfiles(),
     getDeniedRegistrations(),
   ])
 
@@ -44,15 +44,15 @@ export async function getAllRegistrations(): Promise<Employee[]> {
       : undefined,
   }))
 
-  const mappedApproved: Employee[] = (approved ?? []).map((r: any) => ({
+  const mappedProfiles: Employee[] = (profiles ?? []).map((r: any) => ({
     id: r.id,
     name: r.name,
     email: r.email,
     role: r.role ?? 'N/A',
-    department: r.form_data?.department ?? 'N/A',
-    status: 'approved' as const, 
-    dateRegistered: r.updated_at
-      ? new Date(r.updated_at).toLocaleDateString('en-PH')
+    department: r.department ?? 'N/A',
+    status: 'approved' as const,
+    dateRegistered: r.created_at
+      ? new Date(r.created_at).toLocaleDateString('en-PH')
       : undefined,
   }))
 
@@ -68,7 +68,7 @@ export async function getAllRegistrations(): Promise<Employee[]> {
       : undefined,
   }))
 
-  return [...mappedApproved, ...mappedPending, ...mappedDenied]
+  return [...mappedProfiles, ...mappedPending, ...mappedDenied]
 }
 
 

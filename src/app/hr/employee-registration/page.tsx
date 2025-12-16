@@ -20,6 +20,7 @@ import {
   promoteUserRole,
   removeUserRole,
 } from "./actions";
+import { getAllProfiles } from '@/app/hr/committee-management/actions'
 
 type TabKey = "all" | "pending" | "approved" | "rejected";
 
@@ -53,14 +54,29 @@ export default function Page() {
   // Load all registration data
   async function loadAll() {
     setLoading(true);
-    const [pendingData, approvedData, deniedData] = await Promise.all([
+    const [pendingData, approvedData, deniedData, profilesData] = await Promise.all([
       getPendingRegistrations(),
       getApprovedRegistrations(),
       getDeniedRegistrations(),
+      getAllProfiles(),
     ]);
+
+    const profileMap = new Map<string, any>();
+    (profilesData ?? []).forEach((p: any) => profileMap.set(p.id, p));
     // map incoming rows to Employee model (normalize statuses for UI)
     setPending((pendingData ?? []).map((r: any) => ({ ...r, status: "pending", dateRegistered: new Date(r.created_at).toLocaleDateString("en-PH") })));
-    setApproved((approvedData ?? []).map((r: any) => ({ ...r, status: "approved", dateRegistered: r.updated_at ? new Date(r.updated_at).toLocaleDateString("en-PH") : undefined })));
+    // merge profile info (role/department) into approved registry rows when available
+    setApproved((approvedData ?? []).map((r: any) => {
+      const prof = r.user_id ? profileMap.get(r.user_id) : undefined;
+      return {
+        ...r,
+        name: prof?.name ?? r.name,
+        role: prof?.role ?? r.role,
+        department: prof?.department ?? r.form_data?.department,
+        status: "approved",
+        dateRegistered: r.updated_at ? new Date(r.updated_at).toLocaleDateString("en-PH") : undefined,
+      };
+    }));
     // server uses 'denied' status; map to UI 'rejected'
     setRejected((deniedData ?? []).map((r: any) => ({ ...r, status: "rejected", dateRegistered: r.denied_at ? new Date(r.denied_at).toLocaleDateString("en-PH") : undefined })));
     setLoading(false);
